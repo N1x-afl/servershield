@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}CrowdSec IDS{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⛊ CROWDSEC IDS</span>
+  <span class="page-subtitle">Intrusion Detection & Prevention</span>
+  <span class="timestamp">{{ data.timestamp }}</span>
+</div>
+
+{% if not data.available %}
+<div class="alert-box alert-warn">⚠ CrowdSec no está instalado en este sistema</div>
+<div class="card">
+  <div class="card-title">◈ Instalación de CrowdSec</div>
+  <pre class="terminal">{{ data.install_hint }}</pre>
+  <div style="margin-top:12px;font-size:11px;color:rgba(0,255,65,0.5);">
+    CrowdSec es un IDS/IPS colaborativo open-source.<br>
+    Detecta y bloquea IPs maliciosas usando inteligencia colectiva.<br>
+    Sitio oficial: https://www.crowdsec.net
+  </div>
+</div>
+{% else %}
+
+<!-- ESTADO GENERAL -->
+<div class="grid-4" style="margin-bottom:16px;">
+  <div class="stat-box">
+    <div class="stat-value" style="color:{% if data.service_active %}var(--green){% else %}var(--red){% endif %};">
+      {% if data.service_active %}ON{% else %}OFF{% endif %}
+    </div>
+    <div class="stat-label">Servicio</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:{% if data.decisions_count > 0 %}var(--red){% else %}var(--green){% endif %};">
+      {{ data.decisions_count }}
+    </div>
+    <div class="stat-label">IPs Baneadas</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:{% if data.alerts_count > 0 %}var(--amber){% else %}var(--green){% endif %};">
+      {{ data.alerts_count }}
+    </div>
+    <div class="stat-label">Alertas Activas</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ data.bouncers | length }}</div>
+    <div class="stat-label">Bouncers</div>
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- DECISIONES / BANS -->
+<div class="card">
+  <div class="card-title">⚑ Decisiones Activas (IPs Baneadas)</div>
+  {% if data.decisions %}
+  <table class="table-term">
+    <thead><tr><th>IP/Rango</th><th>Razón</th><th>Acción</th><th>Duración</th></tr></thead>
+    <tbody>
+    {% for d in data.decisions %}
+    <tr>
+      <td style="color:var(--red);">{{ d.ip }}</td>
+      <td style="font-size:10px;">{{ d.scenario[:30] }}</td>
+      <td><span class="badge badge-danger">{{ d.action }}</span></td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ d.duration }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert-box alert-ok">✓ Sin decisiones activas — sistema limpio</div>
+  {% endif %}
+</div>
+
+<!-- ALERTAS -->
+<div class="card">
+  <div class="card-title">◈ Alertas Recientes</div>
+  {% if data.alerts %}
+  <table class="table-term">
+    <thead><tr><th>Escenario</th><th>IP</th><th>Fecha</th></tr></thead>
+    <tbody>
+    {% for a in data.alerts %}
+    <tr>
+      <td style="font-size:10px;color:var(--amber);">{{ a.scenario[:35] }}</td>
+      <td style="color:var(--red);">{{ a.ip }}</td>
+      <td style="font-size:9px;color:rgba(0,255,65,0.4);">{{ a.created_at }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert-box alert-ok">✓ Sin alertas recientes</div>
+  {% endif %}
+</div>
+
+</div>
+
+<!-- BOUNCERS -->
+<div class="card">
+  <div class="card-title">⬡ Bouncers Registrados</div>
+  {% if data.bouncers %}
+  <table class="table-term">
+    <thead><tr><th>Nombre</th><th>Tipo</th><th>IP</th><th>Estado</th><th>Último pull</th></tr></thead>
+    <tbody>
+    {% for b in data.bouncers %}
+    <tr>
+      <td>{{ b.name }}</td>
+      <td><span class="badge badge-info">{{ b.type or 'N/A' }}</span></td>
+      <td style="font-size:10px;">{{ b.ip }}</td>
+      <td>
+        {% if b.active %}
+          <span class="badge badge-ok">ACTIVO</span>
+        {% else %}
+          <span class="badge badge-warn">INACTIVO</span>
+        {% endif %}
+      </td>
+      <td style="font-size:9px;color:rgba(0,255,65,0.4);">{{ b.last_pull }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert-box alert-warn">⚠ Sin bouncers registrados — instalar cs-firewall-bouncer para bloqueo efectivo</div>
+  <pre class="terminal">apt install crowdsec-firewall-bouncer-iptables
+# o para nftables:
+apt install crowdsec-firewall-bouncer-nftables</pre>
+  {% endif %}
+</div>
+
+{% if data.hub_status %}
+<div class="card">
+  <div class="card-title">◉ Hub — Colecciones y Parsers</div>
+  <table class="table-term">
+    <thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Versión</th></tr></thead>
+    <tbody>
+    {% for h in data.hub_status %}
+    <tr>
+      <td><span class="badge badge-info">{{ h.type }}</span></td>
+      <td>{{ h.name }}</td>
+      <td>{{ h.status }}</td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ h.version }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if data.recent_logs %}
+<div class="card">
+  <div class="card-title">⊡ Log Reciente de CrowdSec</div>
+  <pre class="terminal">{% for line in data.recent_logs %}{{ line }}
+{% endfor %}</pre>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

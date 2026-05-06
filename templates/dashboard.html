@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">DASHBOARD</span>
+  <span class="page-subtitle">Vista general del servidor</span>
+  <span class="timestamp">{{ stats.timestamp }}</span>
+</div>
+
+<!-- STAT BOXES -->
+<div class="grid-4" style="margin-bottom:16px;">
+  <div class="stat-box">
+    <div class="stat-value">{{ stats.cpu_usage }}</div>
+    <div class="stat-label">CPU Usage</div>
+    {% if stats.cpu_usage != 'N/A' %}
+    <div class="progress-bar">
+      <div class="progress-fill {% if stats.cpu_usage|replace('%','') | float > 80 %}danger{% elif stats.cpu_usage|replace('%','') | float > 60 %}warn{% endif %}"
+           style="width:{{ stats.cpu_usage|replace('%','') }}%"></div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ stats.mem_pct }}%</div>
+    <div class="stat-label">Memoria RAM</div>
+    <div class="progress-bar">
+      <div class="progress-fill {% if stats.mem_pct > 85 %}danger{% elif stats.mem_pct > 65 %}warn{% endif %}"
+           style="width:{{ stats.mem_pct }}%"></div>
+    </div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ stats.disk_pct }}%</div>
+    <div class="stat-label">Disco /</div>
+    <div class="progress-bar">
+      <div class="progress-fill {% if stats.disk_pct | int > 85 %}danger{% elif stats.disk_pct | int > 70 %}warn{% endif %}"
+           style="width:{{ stats.disk_pct }}%"></div>
+    </div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="font-size:18px;">{{ stats.procs }}</div>
+    <div class="stat-label">Procesos Activos</div>
+  </div>
+</div>
+
+<!-- INFO ROW -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">◉ Información del Sistema</div>
+    <table class="table-term">
+      <tr><td style="color:rgba(0,255,65,0.4);width:120px;">HOSTNAME</td><td>{{ stats.hostname }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">SISTEMA</td><td>{{ stats.os }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">KERNEL</td><td>{{ stats.kernel }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">IP</td><td>{{ stats.ip }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">UPTIME</td><td>{{ stats.uptime }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">CPU CORES</td><td>{{ stats.cpu_cores }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">MEMORIA</td><td>{{ stats.mem_used }} / {{ stats.mem_total }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">DISCO</td><td>{{ stats.disk_used }} / {{ stats.disk_total }}</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⬡ Módulos de Seguridad</div>
+    <a href="/status"    class="nav-link-card">◉ Estado Servidor &nbsp;<span class="badge badge-ok">ACTIVO</span></a>
+    <a href="/cve"       class="nav-link-card">⚑ CVE / Vulnerabilidades &nbsp;<span class="badge badge-danger">REVISAR</span></a>
+    <a href="/crowdsec"  class="nav-link-card">⛊ CrowdSec IDS &nbsp;<span class="badge badge-warn">VERIFICAR</span></a>
+    <a href="/security"  class="nav-link-card">⬡ Firewall / Hardening &nbsp;<span class="badge badge-ok">OK</span></a>
+    <a href="/users"     class="nav-link-card">◎ Usuarios / Root &nbsp;<span class="badge badge-warn">REVISAR</span></a>
+    <a href="/ports"     class="nav-link-card">⊟ Puertos / Red &nbsp;<span class="badge badge-ok">ESCANEAR</span></a>
+  </div>
+</div>
+
+<style>
+.nav-link-card {
+  display:flex; align-items:center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0,255,65,0.07);
+  color: rgba(0,255,65,0.7);
+  text-decoration: none;
+  font-size: 12px;
+  transition: color 0.15s;
+  letter-spacing: 1px;
+}
+.nav-link-card:hover { color: var(--green); }
+.nav-link-card:last-child { border-bottom: none; }
+</style>
+
+<div class="card" style="margin-top:4px;">
+  <div class="card-title">⊡ Actividad del Terminal</div>
+  <pre class="terminal" id="term-log">
+[{{ stats.timestamp }}] ServerShield iniciado correctamente
+[SISTEMA] Hostname: {{ stats.hostname }} | Kernel: {{ stats.kernel }}
+[MEMORIA] En uso: {{ stats.mem_used }} / {{ stats.mem_total }} ({{ stats.mem_pct }}%)
+[DISCO]   Uso de /: {{ stats.disk_used }} / {{ stats.disk_total }} ({{ stats.disk_pct }}%)
+[PROCESOS] {{ stats.procs }} procesos activos detectados
+[RED] IP principal: {{ stats.ip }}
+[STATUS] Todos los módulos cargados. Sistema operativo.<span class="blink">_</span>
+  </pre>
+</div>
+{% endblock %}

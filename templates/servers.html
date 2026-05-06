@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+{% block title %}Servidores Remotos{% endblock %}
+
+{% block extra_style %}
+<style>
+.server-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    padding: 18px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+.server-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+}
+.server-card.online::before  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.server-card.offline::before { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+.server-card.unknown::before { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.server-card:hover { border-color: var(--border-bright); background: rgba(0,255,65,0.03); }
+
+.score-ring {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 900;
+    border: 2px solid;
+    flex-shrink: 0;
+}
+.score-ok     { border-color: var(--green); color: var(--green); background: rgba(0,255,65,0.07); }
+.score-warn   { border-color: var(--amber); color: var(--amber); background: rgba(255,179,0,0.07); }
+.score-danger { border-color: var(--red);   color: var(--red);   background: rgba(255,51,51,0.07); }
+
+.mini-bar { height: 4px; background: rgba(0,255,65,0.1); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 2px; }
+.fill-green { background: var(--green); }
+.fill-amber { background: var(--amber); }
+.fill-red   { background: var(--red); }
+
+.port-pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 1px 5px;
+    border: 1px solid rgba(0,255,65,0.2);
+    color: rgba(0,255,65,0.6);
+    margin: 1px;
+}
+
+.modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border-bright);
+    padding: 28px;
+    width: min(480px, 90vw);
+    box-shadow: 0 0 40px rgba(0,255,65,0.1);
+}
+.modal-title {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    color: var(--green);
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+.modal-input {
+    width: 100%;
+    background: rgba(0,255,65,0.03);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 9px 12px;
+    outline: none;
+    margin-bottom: 10px;
+}
+.modal-input:focus { border-color: var(--green-dim); }
+.modal-label {
+    font-size: 9px; letter-spacing: 2px;
+    color: rgba(0,255,65,0.5);
+    text-transform: uppercase;
+    margin-bottom: 4px; display: block;
+}
+.modal-select {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+    outline: none;
+}
+.btn-primary {
+    background: transparent; border: 1px solid var(--green-dim);
+    color: var(--green); font-family: var(--font-display);
+    font-size: 10px; font-weight: 700; letter-spacing: 3px;
+    padding: 10px 20px; cursor: pointer; transition: all 0.2s;
+}
+.btn-primary:hover { background: var(--green); color: #000; }
+.btn-danger {
+    background: transparent; border: 1px solid rgba(255,51,51,0.4);
+    color: var(--red); font-family: var(--font-mono);
+    font-size: 10px; padding: 6px 12px; cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-danger:hover { background: rgba(255,51,51,0.1); }
+.btn-secondary {
+    background: transparent; border: 1px solid var(--border);
+    color: rgba(0,255,65,0.5); font-family: var(--font-mono);
+    font-size: 10px; padding: 10px 16px; cursor: pointer;
+    margin-left: 8px;
+}
+.btn-secondary:hover { color: var(--green); }
+.toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--green-dim);
+    color: var(--green); font-size: 11px;
+    padding: 12px 18px; z-index: 2000;
+    display: none; animation: slideIn 0.3s ease;
+}
+@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⬡ SERVIDORES REMOTOS</span>
+  <span class="page-subtitle">Dashboard multi-servidor</span>
+  <button class="btn-primary" style="margin-left:auto;" onclick="openModal()">
+    ＋ AGREGAR SERVIDOR
+  </button>
+</div>
+
+<!-- RESUMEN GLOBAL -->
+{% if servers %}
+<div class="grid-4" style="margin-bottom:20px;">
+  <div class="stat-box">
+    <div class="stat-value">{{ servers|length }}</div>
+    <div class="stat-label">Total Servidores</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--green);">
+      {{ stats|selectattr('connected')|list|length }}
+    </div>
+    <div class="stat-label">Online</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--red);">
+      {{ stats|rejectattr('connected')|list|length }}
+    </div>
+    <div class="stat-label">Offline</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--amber);">
+      {% set total_updates = namespace(n=0) %}
+      {% for s in stats %}{% if s.connected %}{% set total_updates.n = total_updates.n + s.pending_updates %}{% endif %}{% endfor %}
+      {{ total_updates.n }}
+    </div>
+    <div class="stat-label">Updates Pendientes</div>
+  </div>
+</div>
+
+<!-- GRILLA DE SERVIDORES -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
+{% for s in stats %}
+{% set status_class = 'online' if s.connected else 'offline' %}
+<div class="server-card {{ status_class }}">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+    {% if s.connected %}
+      {% set sc = s.security_score %}
+      <div class="score-ring {% if sc >= 80 %}score-ok{% elif sc >= 50 %}score-warn{% else %}score-danger{% endif %}">
+        {{ sc }}%
+      </div>
+    {% else %}
+      <div class="score-ring score-danger">ERR</div>
+    {% endif %}
+    <div style="flex:1;min-width:0;">
+      <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--green);letter-spacing:1px;">
+        {{ s.server_name }}
+      </div>
+      <div style="font-size:10px;color:rgba(0,255,65,0.4);font-family:var(--font-mono);">
+        {{ s.host }}:{{ s.port }}
+      </div>
+      {% if s.connected %}
+      <div style="font-size:9px;color:rgba(0,255,65,0.35);">{{ s.hostname }} · {{ s.os }}</div>
+      {% endif %}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+      <span class="badge {% if s.connected %}badge-ok{% else %}badge-danger{% endif %}">
+        {% if s.connected %}● ONLINE{% else %}○ OFFLINE{% endif %}
+      </span>
+      <span style="font-size:8px;color:rgba(0,255,65,0.3);">{{ s.timestamp }}</span>
+    </div>
+  </div>
+
+  {% if s.connected %}
+
+  <!-- Métricas -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+    <div>
+      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">CPU</div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);">{{ s.cpu_usage }}</div>
+      <div class="mini-bar">
+        {% set cpu_val = s.cpu_usage|replace('%','')|float if s.cpu_usage != 'N/A' else 0 %}
+        <div class="mini-fill {% if cpu_val > 80 %}fill-red{% elif cpu_val > 60 %}fill-amber{% else %}fill-green{% endif %}"
+             style="width:{{ cpu_val }}%"></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">RAM</div>
+      <div style="font-size:13px;font-weight:700;color:{% if s.mem_pct > 85 %}var(--red){% elif s.mem_pct > 65 %}var(--amber){% else %}var(--green){% endif %};">
+        {{ s.mem_pct }}%
+      </div>
+      <div class="mini-bar">
+        <div class="mini-fill {% if s.mem_pct > 85 %}fill-red{% elif s.mem_pct > 65 %}fill-amber{% else %}fill-green{% endif %}"
+             style="width:{{ s.mem_pct }}%"></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">DISCO</div>
+      <div style="font-size:13px;font-weight:700;color:{% if s.disk_pct > 85 %}var(--red){% elif s.disk_pct > 70 %}var(--amber){% else %}var(--green){% endif %};">
+        {{ s.disk_pct }}%
+      </div>
+      <div class="mini-bar">
+        <div class="mini-fill {% if s.disk_pct > 85 %}fill-red{% elif s.disk_pct > 70 %}fill-amber{% else %}fill-green{% endif %}"
+             style="width:{{ s.disk_pct }}%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seguridad rápida -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    <span class="badge {% if s.ufw_active %}badge-ok{% else %}badge-danger{% endif %}">
+      UFW {% if s.ufw_active %}ON{% else %}OFF{% endif %}
+    </span>
+    <span class="badge {% if not s.ssh_root_login %}badge-ok{% else %}badge-danger{% endif %}">
+      ROOT {% if not s.ssh_root_login %}BLOQ{% else %}ABIERTO{% endif %}
+    </span>
+    <span class="badge {% if s.fail2ban_active %}badge-ok{% else %}badge-warn{% endif %}">
+      F2BAN {% if s.fail2ban_active %}ON{% else %}OFF{% endif %}
+    </span>
+    <span class="badge {% if s.crowdsec_active %}badge-ok{% else %}badge-warn{% endif %}">
+      CSEC {% if s.crowdsec_active %}ON{% else %}OFF{% endif %}
+    </span>
+    {% if s.pending_updates > 0 %}
+    <span class="badge badge-warn">{{ s.pending_updates }} UPD</span>
+    {% endif %}
+  </div>
+
+  <!-- Puertos -->
+  {% if s.open_ports %}
+  <div style="margin-bottom:10px;">
+    <div style="font-size:9px;color:rgba(0,255,65,0.35);margin-bottom:4px;letter-spacing:1px;">PUERTOS ABIERTOS</div>
+    {% for p in s.open_ports[:12] %}
+    <span class="port-pill">{{ p }}</span>
+    {% endfor %}
+    {% if s.open_ports|length > 12 %}
+    <span style="font-size:9px;color:rgba(0,255,65,0.3);">+{{ s.open_ports|length - 12 }} más</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <!-- Error -->
+  <div class="alert-box alert-danger" style="margin:0;">
+    ✕ {{ s.error or 'Sin conexión' }}
+  </div>
+  {% endif %}
+
+  <!-- Acciones -->
+  <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+    <a href="/remote/{{ s.server_id }}" class="btn-primary" style="font-size:9px;padding:6px 12px;text-decoration:none;">
+      ▶ DETALLE
+    </a>
+    <button class="btn-primary" style="font-size:9px;padding:6px 10px;"
+            onclick="refreshServer('{{ s.server_id }}', this)">⟳ REFRESCAR</button>
+    <button class="btn-danger" style="margin-left:auto;"
+            onclick="removeServer('{{ s.server_id }}', '{{ s.server_name }}')">✕</button>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<!-- Estado vacío -->
+<div style="text-align:center;padding:60px 20px;border:1px dashed var(--border);">
+  <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">⬡</div>
+  <div style="font-family:var(--font-display);font-size:14px;color:rgba(0,255,65,0.5);margin-bottom:8px;">
+    SIN SERVIDORES REGISTRADOS
+  </div>
+  <div style="font-size:11px;color:rgba(0,255,65,0.3);margin-bottom:20px;">
+    Agregá un servidor remoto para comenzar el monitoreo
+  </div>
+  <button class="btn-primary" onclick="openModal()">＋ AGREGAR PRIMER SERVIDOR</button>
+</div>
+{% endif %}
+
+<!-- MODAL AGREGAR SERVIDOR -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">＋ AGREGAR SERVIDOR REMOTO</div>
+
+    <label class="modal-label">Nombre del servidor</label>
+    <input class="modal-input" id="srv-name" placeholder="ej: Web Server 01" />
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+      <div>
+        <label class="modal-label">Host / IP</label>
+        <input class="modal-input" id="srv-host" placeholder="192.168.1.100" />
+      </div>
+      <div>
+        <label class="modal-label">Puerto SSH</label>
+        <input class="modal-input" id="srv-port" placeholder="22" value="22" />
+      </div>
+    </div>
+
+    <label class="modal-label">Usuario SSH</label>
+    <input class="modal-input" id="srv-user" placeholder="root / ubuntu / admin" />
+
+    <label class="modal-label">Tipo de autenticación</label>
+    <select class="modal-select" id="srv-auth" onchange="toggleAuth()">
+      <option value="password">Contraseña</option>
+      <option value="key">Clave SSH (recomendado)</option>
+    </select>
+
+    <div id="auth-password">
+      <label class="modal-label">Contraseña SSH</label>
+      <input class="modal-input" id="srv-password" type="password" placeholder="••••••••" />
+    </div>
+
+    <div id="auth-key" style="display:none;">
+      <label class="modal-label">Ruta a la clave privada</label>
+      <input class="modal-input" id="srv-keypath" placeholder="~/.ssh/id_rsa" />
+      <div style="font-size:9px;color:rgba(0,255,65,0.3);margin-top:-6px;margin-bottom:10px;">
+        La clave pública debe estar en authorized_keys del servidor remoto
+      </div>
+    </div>
+
+    <div id="modal-error" class="alert-box alert-danger" style="display:none;margin-bottom:10px;"></div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+      <button class="btn-primary" onclick="addServer()"><span id="btn-text">✓ AGREGAR Y PROBAR</span></button>
+      <button class="btn-secondary" onclick="closeModal()">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal()  { document.getElementById('modal').classList.add('active'); }
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function toggleAuth() {
+  const v = document.getElementById('srv-auth').value;
+  document.getElementById('auth-password').style.display = v === 'password' ? '' : 'none';
+  document.getElementById('auth-key').style.display      = v === 'key'      ? '' : 'none';
+}
+
+function showToast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.borderColor = ok ? 'var(--green-dim)' : 'rgba(255,51,51,0.4)';
+  t.style.color = ok ? 'var(--green)' : 'var(--red)';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+
+async function addServer() {
+  const btn = document.getElementById('btn-text');
+  const err = document.getElementById('modal-error');
+  const auth = document.getElementById('srv-auth').value;
+
+  const body = {
+    name:     document.getElementById('srv-name').value.trim(),
+    host:     document.getElementById('srv-host').value.trim(),
+    port:     document.getElementById('srv-port').value.trim() || '22',
+    username: document.getElementById('srv-user').value.trim(),
+    auth_type: auth,
+    password: auth === 'password' ? document.getElementById('srv-password').value : '',
+    key_path: auth === 'key'      ? document.getElementById('srv-keypath').value.trim() : '',
+  };
+
+  if (!body.name || !body.host || !body.username) {
+    err.textContent = '⚠ Completá nombre, host y usuario';
+    err.style.display = 'flex';
+    return;
+  }
+
+  btn.textContent = '⟳ Probando conexión...';
+  err.style.display = 'none';
+
+  try {
+    const r = await fetch('/remote/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (data.ok) {
+      closeModal();
+      showToast('✓ Servidor agregado — ' + data.message);
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      err.textContent = '✕ ' + data.message;
+      err.style.display = 'flex';
+    }
+  } catch(e) {
+    err.textContent = '✕ Error de comunicación';
+    err.style.display = 'flex';
+  } finally {
+    btn.textContent = '✓ AGREGAR Y PROBAR';
+  }
+}
+
+async function removeServer(id, name) {
+  if (!confirm(`¿Eliminar servidor "${name}"?`)) return;
+  await fetch('/remote/remove/' + encodeURIComponent(id), { method: 'POST' });
+  showToast('Servidor eliminado');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function refreshServer(id, btn) {
+  btn.textContent = '⟳';
+  btn.classList.add('spinning');
+  await fetch('/remote/refresh/' + encodeURIComponent(id));
+  location.reload();
+}
+</script>
+{% endblock %}

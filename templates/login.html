@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServerShield — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #00ff41;
+    --green-dim: #00cc33;
+    --green-dark: #003d10;
+    --green-glow: rgba(0,255,65,0.15);
+    --amber: #ffb300;
+    --red: #ff3333;
+    --bg: #030d05;
+    --panel: #050f07;
+    --border: rgba(0,255,65,0.25);
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-display: 'Orbitron', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* Vignette */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none;
+    z-index: 998;
+  }
+
+  /* Grid bg */
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,65,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .login-container {
+    display: flex;
+    width: min(980px, 95vw);
+    min-height: 520px;
+    border: 1px solid var(--border);
+    box-shadow: 0 0 40px rgba(0,255,65,0.08), 0 0 80px rgba(0,255,65,0.04), inset 0 0 40px rgba(0,0,0,0.5);
+    animation: fadeIn 0.8s ease;
+    position: relative;
+    z-index: 10;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+
+  /* ── LEFT PANEL — ASCII ART ─────────────────────────────────── */
+  .ascii-panel {
+    flex: 1.1;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ascii-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 40%, rgba(0,255,65,0.06) 0%, transparent 70%);
+  }
+
+  .ascii-art {
+    font-size: clamp(5px, 1.1vw, 9.5px);
+    line-height: 1.15;
+    color: var(--green-dim);
+    white-space: pre;
+    text-shadow: 0 0 8px rgba(0,255,65,0.5);
+    animation: flicker 8s infinite;
+    letter-spacing: 0;
+  }
+
+  @keyframes flicker {
+    0%,100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.85; }
+    94% { opacity: 1; }
+    96% { opacity: 0.9; }
+    97% { opacity: 1; }
+  }
+
+  .ascii-label {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--green);
+    text-transform: uppercase;
+    margin-top: 20px;
+    text-shadow: 0 0 15px var(--green);
+    opacity: 0.9;
+  }
+
+  .ascii-version {
+    font-size: 10px;
+    color: rgba(0,255,65,0.4);
+    margin-top: 6px;
+    letter-spacing: 2px;
+  }
+
+  .status-bar {
+    margin-top: 18px;
+    display: flex;
+    gap: 12px;
+    font-size: 9px;
+    color: rgba(0,255,65,0.5);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ── RIGHT PANEL — LOGIN FORM ───────────────────────────────── */
+  .login-panel {
+    flex: 0.9;
+    background: #050d07;
+    padding: 40px 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .login-header {
+    margin-bottom: 32px;
+  }
+
+  .login-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 20px rgba(0,255,65,0.6);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+
+  .login-subtitle {
+    font-size: 11px;
+    color: rgba(0,255,65,0.4);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .terminal-line {
+    font-size: 11px;
+    color: rgba(0,255,65,0.35);
+    margin-bottom: 28px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  .terminal-line::before { content: '> '; color: var(--green-dim); }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(0,255,65,0.6);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .form-label::before { content: '[ '; }
+  .form-label::after  { content: ' ]'; }
+
+  .form-input {
+    width: 100%;
+    background: rgba(0,255,65,0.03);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: all 0.2s;
+    caret-color: var(--green);
+  }
+
+  .form-input:focus {
+    border-color: var(--green-dim);
+    background: rgba(0,255,65,0.05);
+    box-shadow: 0 0 15px rgba(0,255,65,0.1), inset 0 0 10px rgba(0,255,65,0.03);
+  }
+
+  .form-input::placeholder { color: rgba(0,255,65,0.2); }
+
+  .btn-login {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--green-dim);
+    color: var(--green);
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    padding: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-login::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--green);
+    transform: translateX(-101%);
+    transition: transform 0.25s ease;
+    z-index: 0;
+  }
+
+  .btn-login:hover::before { transform: translateX(0); }
+  .btn-login:hover { color: #000; box-shadow: 0 0 20px rgba(0,255,65,0.4); }
+  .btn-login span { position: relative; z-index: 1; }
+
+  .error-box {
+    background: rgba(255,51,51,0.08);
+    border: 1px solid rgba(255,51,51,0.4);
+    color: var(--red);
+    font-size: 11px;
+    padding: 10px 14px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .error-box::before { content: '⚠'; font-size: 14px; }
+
+  .login-footer {
+    margin-top: 24px;
+    font-size: 9px;
+    color: rgba(0,255,65,0.25);
+    text-align: center;
+    letter-spacing: 2px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  .blink { animation: blink 1.2s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Corner decorations */
+  .corner {
+    position: absolute;
+    width: 12px; height: 12px;
+    border-color: var(--green-dim);
+    border-style: solid;
+    opacity: 0.5;
+  }
+  .corner-tl { top: 8px; left: 8px; border-width: 1px 0 0 1px; }
+  .corner-tr { top: 8px; right: 8px; border-width: 1px 1px 0 0; }
+  .corner-bl { bottom: 8px; left: 8px; border-width: 0 0 1px 1px; }
+  .corner-br { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<div class="login-container">
+
+  <!-- LEFT: ASCII ART -->
+  <div class="ascii-panel">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+    <pre class="ascii-art">
+     ██████╗ ███████╗██████╗ ██╗   ██╗███████╗██████╗
+    ██╔════╝ ██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
+    ███████╗ █████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
+    ╚════██║ ██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
+    ███████║ ███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║
+    ╚══════╝ ╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝
+
+         ███████╗██╗  ██╗██╗███████╗██╗     ██████╗
+         ██╔════╝██║  ██║██║██╔════╝██║     ██╔══██╗
+         ███████╗███████║██║█████╗  ██║     ██║  ██║
+         ╚════██║██╔══██║██║██╔══╝  ██║     ██║  ██║
+         ███████║██║  ██║██║███████╗███████╗██████╔╝
+         ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝
+
+    ╔════════════════════════════════════════════════╗
+    ║                                                ║
+    ║    ┌─────────────────────────────────────┐    ║
+    ║    │  [■] [■] [■] SERVER NODE-01         │    ║
+    ║    ├─────────────────────────────────────┤    ║
+    ║    │  CPU ████████░░ 76%  MEM ██████░░░  │    ║
+    ║    │  ┌──────┐  ┌──────┐  ┌──────┐       │    ║
+    ║    │  │PROC.1│  │PROC.2│  │PROC.3│       │    ║
+    ║    │  │ ████ │  │ ████ │  │ ████ │       │    ║
+    ║    │  └──────┘  └──────┘  └──────┘       │    ║
+    ║    │  DISK /  ███████░░░ 68%              │    ║
+    ║    │  NET ▲ 1.2MB/s  ▼ 4.5MB/s           │    ║
+    ║    │  UPTIME: 42 days, 7 hrs              │    ║
+    ║    │  STATUS: ● ONLINE ● SECURE           │    ║
+    ║    └─────────────────────────────────────┘    ║
+    ║                                                ║
+    ║    FIREWALL: [ACTIVE]  IDS: [ACTIVE]           ║
+    ║    FAIL2BAN: [ACTIVE]  CROWDSEC: [ACTIVE]      ║
+    ╚════════════════════════════════════════════════╝</pre>
+
+    <div class="ascii-label">ServerShield</div>
+    <div class="ascii-version">HARDENING TOOLKIT v2.1.0</div>
+    <div class="status-bar">
+      <span><span class="status-dot"></span> SISTEMA ONLINE</span>
+      <span><span class="status-dot"></span> SEGURO</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: LOGIN FORM -->
+  <div class="login-panel">
+    <div class="login-header">
+      <div class="login-title">AUTENTICACIÓN</div>
+      <div class="login-subtitle">Acceso restringido — Nivel 2</div>
+    </div>
+
+    <div class="terminal-line">Ingrese credenciales para continuar<span class="blink">_</span></div>
+
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/">
+      <div class="form-group">
+        <label class="form-label" for="username">Usuario</label>
+        <input class="form-input" type="text" id="username" name="username"
+               placeholder="usuario@sistema" autocomplete="username" required
+               value="{{ request.form.get('username', '') }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Contraseña</label>
+        <input class="form-input" type="password" id="password" name="password"
+               placeholder="••••••••••••" autocomplete="current-password" required>
+      </div>
+      <button class="btn-login" type="submit">
+        <span>▶ INICIAR SESIÓN</span>
+      </button>
+    </form>
+
+    <div class="login-footer">
+      ACCESO MONITOREADO · SOLO PERSONAL AUTORIZADO<br>
+      TODOS LOS ACCESOS SON REGISTRADOS Y AUDITADOS
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

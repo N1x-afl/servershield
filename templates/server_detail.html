@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}{{ data.server_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="/servers" style="color:rgba(0,255,65,0.4);text-decoration:none;font-size:11px;">← SERVIDORES</a>
+  <span style="color:var(--border);margin:0 8px;">|</span>
+  <span class="page-title" style="font-size:14px;">⬡ {{ data.server_name }}</span>
+  <span class="page-subtitle">{{ data.host }}:{{ data.port }}</span>
+  <span class="timestamp">{{ data.timestamp }}</span>
+</div>
+
+{% if not data.connected %}
+<div class="alert-box alert-danger">
+  ✕ No se pudo conectar al servidor — {{ data.error or 'Error desconocido' }}
+</div>
+<div class="card">
+  <div class="card-title">Posibles causas</div>
+  <div class="check-row"><span class="check-icon">→</span><span>Verificar que SSH esté activo en el servidor remoto</span></div>
+  <div class="check-row"><span class="check-icon">→</span><span>Verificar el puerto SSH (default: 22)</span></div>
+  <div class="check-row"><span class="check-icon">→</span><span>Verificar usuario y contraseña/clave</span></div>
+  <div class="check-row"><span class="check-icon">→</span><span>Verificar que el firewall permite la conexión</span></div>
+</div>
+{% else %}
+
+<!-- STATS -->
+<div class="grid-4" style="margin-bottom:16px;">
+  <div class="stat-box">
+    <div class="stat-value">{{ data.cpu_usage }}</div>
+    <div class="stat-label">CPU Usage</div>
+    {% set cpu_v = data.cpu_usage|replace('%','')|float if data.cpu_usage != 'N/A' else 0 %}
+    <div class="progress-bar"><div class="progress-fill {% if cpu_v > 80 %}danger{% elif cpu_v > 60 %}warn{% endif %}"
+         style="width:{{ cpu_v }}%"></div></div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ data.mem_pct }}%</div>
+    <div class="stat-label">Memoria RAM</div>
+    <div class="progress-bar"><div class="progress-fill {% if data.mem_pct > 85 %}danger{% elif data.mem_pct > 65 %}warn{% endif %}"
+         style="width:{{ data.mem_pct }}%"></div></div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ data.disk_pct }}%</div>
+    <div class="stat-label">Disco /</div>
+    <div class="progress-bar"><div class="progress-fill {% if data.disk_pct > 85 %}danger{% elif data.disk_pct > 70 %}warn{% endif %}"
+         style="width:{{ data.disk_pct }}%"></div></div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:{% if data.security_score >= 80 %}var(--green){% elif data.security_score >= 50 %}var(--amber){% else %}var(--red){% endif %};">
+      {{ data.security_score }}%
+    </div>
+    <div class="stat-label">Security Score</div>
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- INFO -->
+<div class="card">
+  <div class="card-title">◉ Información del Sistema</div>
+  <table class="table-term">
+    <tr><td style="color:rgba(0,255,65,0.4);width:110px;">HOSTNAME</td><td>{{ data.hostname }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">SISTEMA</td><td>{{ data.os }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">KERNEL</td><td>{{ data.kernel }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">IP</td><td>{{ data.ip }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">UPTIME</td><td>{{ data.uptime }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">CPU CORES</td><td>{{ data.cpu_cores }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">MEMORIA</td><td>{{ data.mem_used }} / {{ data.mem_total }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">PROCESOS</td><td>{{ data.procs }}</td></tr>
+    <tr><td style="color:rgba(0,255,65,0.4);">CARGA 1m/5m</td><td>{{ data.load_1 }} / {{ data.load_5 }}</td></tr>
+  </table>
+</div>
+
+<!-- SEGURIDAD -->
+<div class="card">
+  <div class="card-title">⬡ Chequeos de Seguridad</div>
+  <div class="check-row">
+    <span class="check-icon">{% if data.ufw_active %}✓{% else %}✗{% endif %}</span>
+    <span class="check-name" style="color:{% if data.ufw_active %}var(--green){% else %}var(--red){% endif %};">Firewall UFW</span>
+    <span class="badge {% if data.ufw_active %}badge-ok{% else %}badge-danger{% endif %}">
+      {% if data.ufw_active %}ACTIVO{% else %}INACTIVO{% endif %}
+    </span>
+  </div>
+  <div class="check-row">
+    <span class="check-icon">{% if not data.ssh_root_login %}✓{% else %}✗{% endif %}</span>
+    <span class="check-name" style="color:{% if not data.ssh_root_login %}var(--green){% else %}var(--red){% endif %};">Root Login SSH</span>
+    <span class="badge {% if not data.ssh_root_login %}badge-ok{% else %}badge-danger{% endif %}">
+      {% if not data.ssh_root_login %}BLOQUEADO{% else %}ABIERTO{% endif %}
+    </span>
+  </div>
+  <div class="check-row">
+    <span class="check-icon">{% if data.fail2ban_active %}✓{% else %}○{% endif %}</span>
+    <span class="check-name" style="color:{% if data.fail2ban_active %}var(--green){% else %}var(--amber){% endif %};">Fail2ban</span>
+    <span class="badge {% if data.fail2ban_active %}badge-ok{% else %}badge-warn{% endif %}">
+      {% if data.fail2ban_active %}ACTIVO{% else %}INACTIVO{% endif %}
+    </span>
+  </div>
+  <div class="check-row">
+    <span class="check-icon">{% if data.crowdsec_active %}✓{% else %}○{% endif %}</span>
+    <span class="check-name" style="color:{% if data.crowdsec_active %}var(--green){% else %}var(--amber){% endif %};">CrowdSec IDS</span>
+    <span class="badge {% if data.crowdsec_active %}badge-ok{% else %}badge-warn{% endif %}">
+      {% if data.crowdsec_active %}ACTIVO{% else %}INACTIVO{% endif %}
+    </span>
+  </div>
+  <div class="check-row">
+    <span class="check-icon">{% if data.pending_updates == 0 %}✓{% else %}✗{% endif %}</span>
+    <span class="check-name" style="color:{% if data.pending_updates == 0 %}var(--green){% else %}var(--amber){% endif %};">
+      Actualizaciones pendientes
+    </span>
+    <span class="badge {% if data.pending_updates == 0 %}badge-ok{% elif data.pending_updates > 10 %}badge-danger{% else %}badge-warn{% endif %}">
+      {{ data.pending_updates }} pendientes
+    </span>
+  </div>
+</div>
+
+</div>
+
+<div class="grid-2">
+
+<!-- PUERTOS -->
+<div class="card">
+  <div class="card-title">⊟ Puertos en Escucha</div>
+  {% if data.open_ports %}
+  <div style="display:flex;flex-wrap:wrap;gap:4px;">
+    {% set dangerous = [21,23,135,139,445,3389,5900,6379,9200,27017] %}
+    {% for p in data.open_ports %}
+      {% set pnum = p|int %}
+      <span style="display:inline-block;font-family:var(--font-mono);font-size:10px;padding:3px 8px;
+        border:1px solid {% if pnum in dangerous %}rgba(255,51,51,0.4){% else %}rgba(0,255,65,0.2){% endif %};
+        color:{% if pnum in dangerous %}var(--red){% else %}rgba(0,255,65,0.7){% endif %};">
+        {{ p }}
+      </span>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin datos de puertos</div>
+  {% endif %}
+</div>
+
+<!-- SERVICIOS -->
+<div class="card">
+  <div class="card-title">◈ Servicios Detectados</div>
+  {% if data.services %}
+  {% for svc, status in data.services.items() %}
+  <div class="check-row">
+    <span class="check-icon">{% if status == 'active' %}✓{% else %}○{% endif %}</span>
+    <span class="check-name">{{ svc }}</span>
+    <span class="badge {% if status == 'active' %}badge-ok{% else %}badge-info{% endif %}">{{ status }}</span>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin servicios detectados</div>
+  {% endif %}
+</div>
+
+</div>
+
+<!-- ÚLTIMOS LOGINS -->
+{% if data.last_logins %}
+<div class="card">
+  <div class="card-title">◎ Últimos Accesos</div>
+  <pre class="terminal">{% for l in data.last_logins %}{{ l }}
+{% endfor %}</pre>
+</div>
+{% endif %}
+
+{% endif %}
+
+<div style="margin-top:16px;">
+  <a href="/servers" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">
+    ← Volver a todos los servidores
+  </a>
+  &nbsp;&nbsp;
+  <a href="/remote/{{ data.server_id }}" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">
+    ⟳ Actualizar datos
+  </a>
+</div>
+{% endblock %}

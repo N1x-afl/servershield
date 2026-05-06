@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Seguridad / Firewall{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⬡ SEGURIDAD / FIREWALL</span>
+  <span class="page-subtitle">Hardening score: {{ data.score }}% ({{ data.score_ok }}/{{ data.score_total }} controles OK)</span>
+</div>
+
+<!-- SCORE -->
+<div class="card" style="margin-bottom:16px;">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+    <span style="font-family:var(--font-display);font-size:32px;font-weight:900;
+      color:{% if data.score >= 80 %}var(--green){% elif data.score >= 50 %}var(--amber){% else %}var(--red){% endif %};
+      text-shadow:0 0 15px currentColor;">{{ data.score }}%</span>
+    <div>
+      <div style="font-size:12px;letter-spacing:2px;">HARDENING SCORE</div>
+      <div style="font-size:10px;color:rgba(0,255,65,0.4);">{{ data.score_ok }} controles OK de {{ data.score_total }} evaluados</div>
+    </div>
+  </div>
+  <div class="progress-bar" style="height:10px;">
+    <div class="progress-fill {% if data.score < 50 %}danger{% elif data.score < 80 %}warn{% endif %}"
+         style="width:{{ data.score }}%"></div>
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- FIREWALL -->
+<div class="card">
+  <div class="card-title">⊟ Firewall (UFW)</div>
+  {% if data.firewall.ufw_active %}
+  <div class="alert-box alert-ok">✓ UFW activo y en funcionamiento</div>
+  {% else %}
+  <div class="alert-box alert-danger">✗ UFW no activo o no instalado</div>
+  {% endif %}
+  <pre class="terminal">{{ data.firewall.ufw_output }}</pre>
+</div>
+
+<!-- SSH -->
+<div class="card">
+  <div class="card-title">⊡ Configuración SSH</div>
+  {% if data.ssh.service_active %}
+  <div class="alert-box alert-ok" style="margin-bottom:10px;">✓ Servicio SSH activo</div>
+  {% else %}
+  <div class="alert-box alert-warn" style="margin-bottom:10px;">○ SSH no activo o no instalado</div>
+  {% endif %}
+
+  {% for check in data.ssh.checks %}
+  <div class="check-row">
+    <span class="check-icon">{% if check.ok %}✓{% else %}✗{% endif %}</span>
+    <div>
+      <div class="check-name" style="color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">{{ check.name }}</div>
+      {% if not check.ok %}<div class="check-detail" style="color:var(--amber);">→ {{ check.rec }}</div>{% endif %}
+    </div>
+    <span class="badge {% if check.ok %}badge-ok{% else %}badge-danger{% endif %}" style="margin-left:auto;">
+      {% if check.ok %}OK{% else %}FALLA{% endif %}
+    </span>
+  </div>
+  {% endfor %}
+</div>
+
+</div>
+
+<!-- CHEQUEOS KERNEL / SYSCTL -->
+<div class="card">
+  <div class="card-title">◈ Controles del Kernel (sysctl)</div>
+  <div class="grid-2">
+  {% for check in data.general_checks %}
+  <div class="check-row">
+    <span class="check-icon" style="color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">
+      {% if check.ok %}✓{% else %}✗{% endif %}
+    </span>
+    <div style="flex:1;min-width:0;">
+      <div class="check-name" style="font-size:11px;color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">{{ check.name }}</div>
+      <div class="check-detail">Valor: {{ check.value }}</div>
+      {% if not check.ok %}<div class="check-detail" style="color:var(--amber);">→ {{ check.rec }}</div>{% endif %}
+    </div>
+    <span class="badge {% if check.ok %}badge-ok{% else %}badge-danger{% endif %}">
+      {% if check.ok %}OK{% else %}FALLA{% endif %}
+    </span>
+  </div>
+  {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- FAIL2BAN -->
+<div class="card">
+  <div class="card-title">⬡ Fail2ban</div>
+  {% if data.fail2ban.active %}
+  <div class="alert-box alert-ok">✓ Fail2ban activo</div>
+  {% else %}
+  <div class="alert-box alert-warn">✗ Fail2ban no activo</div>
+  {% endif %}
+  <pre class="terminal">{{ data.fail2ban.jails }}</pre>
+</div>
+
+<!-- MAC / AppArmor / SELinux -->
+<div class="card">
+  <div class="card-title">◉ Control Mandatorio de Acceso</div>
+  <div class="check-row">
+    <span class="check-icon">{% if data.mac.selinux_enforcing %}✓{% else %}○{% endif %}</span>
+    <div class="check-name">SELinux</div>
+    <span class="badge {% if data.mac.selinux_enforcing %}badge-ok{% else %}badge-info{% endif %}">{{ data.mac.selinux }}</span>
+  </div>
+  <div class="check-row">
+    <span class="check-icon">{% if data.mac.apparmor_active %}✓{% else %}○{% endif %}</span>
+    <div class="check-name">AppArmor</div>
+    <span class="badge {% if data.mac.apparmor_active %}badge-ok{% else %}badge-info{% endif %}">
+      {% if data.mac.apparmor_active %}ACTIVO{% else %}NO ACTIVO{% endif %}
+    </span>
+  </div>
+  {% if data.mac.apparmor %}
+  <pre class="terminal" style="margin-top:10px;">{{ data.mac.apparmor }}</pre>
+  {% endif %}
+</div>
+
+</div>
+
+<!-- SUID -->
+{% if data.suid %}
+<div class="card">
+  <div class="card-title">⚑ Archivos SUID/SGID Detectados</div>
+  <pre class="terminal">{% for f in data.suid %}{{ f }}
+{% endfor %}</pre>
+</div>
+{% endif %}
+
+<!-- AUDITD -->
+<div class="card">
+  <div class="card-title">◎ Auditoría del Sistema (auditd)</div>
+  {% if data.auditd.active %}
+  <div class="alert-box alert-ok">✓ auditd activo</div>
+  {% else %}
+  <div class="alert-box alert-warn">✗ auditd no activo — instalar: apt install auditd</div>
+  {% endif %}
+  <pre class="terminal">{{ data.auditd.rules }}</pre>
+</div>
+{% endblock %}

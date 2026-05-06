@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}CVE / Vulnerabilidades{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⚑ CVE / VULNERABILIDADES</span>
+  <span class="page-subtitle">Kernel: {{ data.kernel }} | {{ data.os }}</span>
+  <span class="timestamp">{{ data.timestamp }}</span>
+</div>
+
+<!-- NIVEL DE RIESGO -->
+<div style="margin-bottom:20px;">
+  {% set risk_label, risk_class = data.risk_level %}
+  <div class="alert-box alert-{{ risk_class }}">
+    <strong>⚑ NIVEL DE RIESGO ESTIMADO: {{ risk_label }}</strong>
+    &nbsp;|&nbsp; {{ data.updates_count }} actualizaciones de seguridad pendientes
+    &nbsp;|&nbsp; {{ data.nvd_cves|length }} CVEs recientes consultados
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- ACTUALIZACIONES PENDIENTES -->
+<div class="card">
+  <div class="card-title">◈ Actualizaciones de Seguridad Pendientes</div>
+  {% if data.security_updates %}
+  <table class="table-term">
+    <thead><tr><th>Paquete</th><th>Versión</th><th>Fuente</th></tr></thead>
+    <tbody>
+    {% for pkg in data.security_updates %}
+    <tr>
+      <td><span style="color:var(--amber)">{{ pkg.package }}</span></td>
+      <td>{{ pkg.version }}</td>
+      <td><span class="badge badge-danger">{{ pkg.source }}</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert-box alert-ok">✓ Sin actualizaciones de seguridad pendientes detectadas</div>
+  {% endif %}
+</div>
+
+<!-- PAQUETES CRÍTICOS -->
+<div class="card">
+  <div class="card-title">⊡ Paquetes Críticos Instalados</div>
+  {% if data.critical_packages %}
+  <table class="table-term">
+    <thead><tr><th>Paquete</th><th>Versión instalada</th></tr></thead>
+    <tbody>
+    {% for pkg in data.critical_packages %}
+    <tr>
+      <td>{{ pkg.name }}</td>
+      <td style="color:var(--green-dim);">{{ pkg.version }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">No se detectaron paquetes críticos instalados</div>
+  {% endif %}
+</div>
+
+</div>
+
+<!-- CVEs NVD -->
+<div class="card">
+  <div class="card-title">⚑ CVEs Recientes — NVD API (Linux Kernel)</div>
+  {% if data.nvd_error %}
+  <div class="alert-box alert-warn">⚠ {{ data.nvd_error }}</div>
+  {% endif %}
+
+  {% if data.nvd_cves %}
+  {% for cve in data.nvd_cves %}
+  <div style="border:1px solid rgba(0,255,65,0.1);padding:12px;margin-bottom:8px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+      <strong style="color:var(--amber);font-size:12px;">{{ cve.id }}</strong>
+      <span class="badge {% if cve.score != 'N/A' and cve.score|float >= 7.0 %}badge-danger{% elif cve.score != 'N/A' and cve.score|float >= 4.0 %}badge-warn{% else %}badge-ok{% endif %}">
+        CVSS: {{ cve.score }}
+      </span>
+      <span class="badge badge-info">{{ cve.severity }}</span>
+      <span style="margin-left:auto;font-size:9px;color:rgba(0,255,65,0.35);">{{ cve.published }}</span>
+    </div>
+    <div style="font-size:10px;color:rgba(0,255,65,0.6);line-height:1.5;">{{ cve.description }}</div>
+  </div>
+  {% endfor %}
+  {% elif not data.nvd_error %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin CVEs disponibles de NVD</div>
+  {% endif %}
+</div>
+
+<!-- LYNIS -->
+<div class="card">
+  <div class="card-title">◈ Lynis — Auditoría del Sistema</div>
+  <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+    <span>Estado:</span>
+    {% if data.lynis_available %}
+      <span class="badge badge-ok">✓ INSTALADO — {{ data.lynis_version }}</span>
+    {% else %}
+      <span class="badge badge-warn">✗ NO INSTALADO</span>
+    {% endif %}
+  </div>
+  <div style="font-size:11px;color:rgba(0,255,65,0.5);margin-bottom:8px;">
+    Último score: {{ data.lynis_last_score }}
+  </div>
+  {% if not data.lynis_available %}
+  <pre class="terminal">Para instalar Lynis:
+  apt install lynis        # Debian/Ubuntu
+  yum install lynis        # RHEL/CentOS
+  brew install lynis       # macOS
+
+Para ejecutar auditoría:
+  sudo lynis audit system</pre>
+  {% endif %}
+</div>
+{% endblock %}

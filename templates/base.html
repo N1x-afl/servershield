@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ServerShield — {% block title %}Dashboard{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #00ff41;
+    --green-dim: #00cc33;
+    --green-dark: #003d10;
+    --green-glow: rgba(0,255,65,0.15);
+    --amber: #ffb300;
+    --red: #ff3333;
+    --bg: #030d05;
+    --panel: #050f07;
+    --panel2: #060e08;
+    --border: rgba(0,255,65,0.2);
+    --border-bright: rgba(0,255,65,0.4);
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-display: 'Orbitron', monospace;
+    --sidebar-w: 220px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Scanlines */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ── TOP BAR ──────────────────────────────────────────────────── */
+  .topbar {
+    height: 48px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    flex-shrink: 0;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .topbar-logo {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 15px rgba(0,255,65,0.6);
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  .topbar-sep { color: var(--border-bright); margin: 0 4px; }
+
+  .topbar-status {
+    display: flex; gap: 14px; align-items: center;
+    font-size: 10px; color: rgba(0,255,65,0.5);
+    margin-left: auto;
+  }
+
+  .status-item { display: flex; align-items: center; gap: 5px; }
+
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    box-shadow: 0 0 5px currentColor;
+  }
+
+  .dot-green { background: var(--green); color: var(--green); animation: pulse 2s infinite; }
+  .dot-amber { background: var(--amber); color: var(--amber); }
+  .dot-red   { background: var(--red);   color: var(--red); }
+
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .topbar-user {
+    font-size: 10px; color: var(--green-dim);
+    border-left: 1px solid var(--border);
+    padding-left: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .btn-logout {
+    font-family: var(--font-mono); font-size: 10px;
+    color: rgba(255,51,51,0.7); background: transparent;
+    border: 1px solid rgba(255,51,51,0.3);
+    padding: 3px 8px; cursor: pointer;
+    transition: all 0.2s; text-decoration: none; letter-spacing: 1px;
+  }
+  .btn-logout:hover { background: rgba(255,51,51,0.1); color: var(--red); }
+
+  /* ── LAYOUT ───────────────────────────────────────────────────── */
+  .layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* ── SIDEBAR ──────────────────────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+
+  .sidebar-section {
+    padding: 14px 0 6px;
+  }
+
+  .sidebar-section-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: rgba(0,255,65,0.35);
+    text-transform: uppercase;
+    padding: 0 16px 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 11px;
+    color: rgba(0,255,65,0.55);
+    text-decoration: none;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    letter-spacing: 1px;
+  }
+
+  .nav-item:hover {
+    color: var(--green);
+    background: rgba(0,255,65,0.04);
+    border-left-color: var(--green-dim);
+  }
+
+  .nav-item.active {
+    color: var(--green);
+    background: rgba(0,255,65,0.07);
+    border-left-color: var(--green);
+    text-shadow: 0 0 8px rgba(0,255,65,0.4);
+  }
+
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; }
+  .nav-badge {
+    margin-left: auto;
+    font-size: 9px;
+    background: rgba(255,179,0,0.15);
+    color: var(--amber);
+    border: 1px solid rgba(255,179,0,0.3);
+    padding: 1px 5px;
+  }
+  .nav-badge.danger {
+    background: rgba(255,51,51,0.15);
+    color: var(--red);
+    border-color: rgba(255,51,51,0.3);
+  }
+
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 14px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 9px;
+    color: rgba(0,255,65,0.25);
+    line-height: 1.8;
+  }
+
+  /* ── MAIN CONTENT ─────────────────────────────────────────────── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    min-width: 0;
+  }
+
+  /* ── COMPONENTS ───────────────────────────────────────────────── */
+  .page-header {
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--green);
+    text-shadow: 0 0 15px rgba(0,255,65,0.4);
+  }
+
+  .page-subtitle {
+    font-size: 10px;
+    color: rgba(0,255,65,0.4);
+    letter-spacing: 2px;
+  }
+
+  .timestamp {
+    margin-left: auto;
+    font-size: 10px;
+    color: rgba(0,255,65,0.3);
+  }
+
+  .card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(0,255,65,0.5);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  .stat-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: 0 0 15px rgba(0,255,65,0.5);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(0,255,65,0.4);
+    text-transform: uppercase;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 7px;
+    letter-spacing: 1px;
+    font-weight: bold;
+  }
+
+  .badge-ok      { background: rgba(0,255,65,0.1);  color: var(--green); border: 1px solid rgba(0,255,65,0.3); }
+  .badge-warn    { background: rgba(255,179,0,0.1); color: var(--amber); border: 1px solid rgba(255,179,0,0.3); }
+  .badge-danger  { background: rgba(255,51,51,0.1);  color: var(--red);   border: 1px solid rgba(255,51,51,0.3); }
+  .badge-info    { background: rgba(0,150,255,0.1);  color: #4af; border: 1px solid rgba(0,150,255,0.3); }
+
+  .table-term {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .table-term th {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-bright);
+    color: rgba(0,255,65,0.5);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .table-term td {
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(0,255,65,0.06);
+    color: rgba(0,255,65,0.8);
+    vertical-align: middle;
+  }
+
+  .table-term tr:hover td { background: rgba(0,255,65,0.03); }
+
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,255,65,0.06);
+    font-size: 11px;
+  }
+
+  .check-icon { font-size: 14px; width: 20px; text-align: center; }
+  .check-name { flex: 1; }
+  .check-detail { font-size: 10px; color: rgba(0,255,65,0.4); margin-top: 2px; }
+
+  .progress-bar {
+    height: 6px;
+    background: rgba(0,255,65,0.1);
+    border: 1px solid var(--border);
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    transition: width 0.5s ease;
+  }
+
+  .progress-fill.warn  { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  .progress-fill.danger{ background: var(--red);   box-shadow: 0 0 8px var(--red); }
+
+  pre.terminal {
+    background: #020905;
+    border: 1px solid var(--border);
+    padding: 12px;
+    font-size: 10px;
+    color: rgba(0,255,65,0.7);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+    line-height: 1.5;
+  }
+
+  .alert-box {
+    padding: 10px 14px;
+    font-size: 11px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .alert-danger { background: rgba(255,51,51,0.06); border: 1px solid rgba(255,51,51,0.3); color: var(--red); }
+  .alert-warn   { background: rgba(255,179,0,0.06); border: 1px solid rgba(255,179,0,0.3); color: var(--amber); }
+  .alert-ok     { background: rgba(0,255,65,0.05);  border: 1px solid rgba(0,255,65,0.2);  color: var(--green-dim); }
+
+  .blink { animation: blink 1.2s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+{% block extra_style %}{% endblock %}
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">⬡ SERVERSHIELD</div>
+  <span class="topbar-sep">|</span>
+  <span style="font-size:10px;color:rgba(0,255,65,0.4);letter-spacing:2px;">HARDENING TOOLKIT</span>
+
+  <div class="topbar-status">
+    <div class="status-item"><span class="dot dot-green"></span> SISTEMA</div>
+    <div class="status-item"><span class="dot dot-green"></span> FIREWALL</div>
+    <div class="status-item"><span class="dot dot-amber"></span> ACTUALIZACIONES</div>
+  </div>
+
+  <div class="topbar-user">
+    <span>▶ {{ user }}</span>
+    <span style="color:rgba(0,255,65,0.3)">[{{ role }}]</span>
+    <a href="/logout" class="btn-logout">✕ SALIR</a>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Navegación</div>
+      <a href="/dashboard" class="nav-item {% if active=='dashboard' %}active{% endif %}">
+        <span class="nav-icon">◈</span> Dashboard
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Módulos</div>
+      <a href="/status" class="nav-item {% if active=='status' %}active{% endif %}">
+        <span class="nav-icon">◉</span> Estado Servidor
+      </a>
+      <a href="/cve" class="nav-item {% if active=='cve' %}active{% endif %}">
+        <span class="nav-icon">⚑</span> CVE / Vulnerabilidades
+        <span class="nav-badge danger">!</span>
+      </a>
+      <a href="/crowdsec" class="nav-item {% if active=='crowdsec' %}active{% endif %}">
+        <span class="nav-icon">⛊</span> CrowdSec IDS
+      </a>
+      <a href="/security" class="nav-item {% if active=='security' %}active{% endif %}">
+        <span class="nav-icon">⬡</span> Seguridad / Firewall
+      </a>
+      <a href="/users" class="nav-item {% if active=='users' %}active{% endif %}">
+        <span class="nav-icon">◎</span> Usuarios / Root
+        <span class="nav-badge">▲</span>
+      </a>
+      <a href="/ports" class="nav-item {% if active=='ports' %}active{% endif %}">
+        <span class="nav-icon">⊟</span> Puertos / Red
+      </a>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Infraestructura</div>
+      <a href="/servers" class="nav-item {% if active=='servers' %}active{% endif %}">
+        <span class="nav-icon">⊞</span> Servidores Remotos
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      SERVERSHIELD v2.1.0<br>
+      SESSION: {{ user }}<br>
+      <span id="clock" class="blink">██:██:██</span>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      String(now.getHours()).padStart(2,'0') + ':' +
+      String(now.getMinutes()).padStart(2,'0') + ':' +
+      String(now.getSeconds()).padStart(2,'0');
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

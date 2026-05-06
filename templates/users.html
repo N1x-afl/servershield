@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Usuarios / Permisos Root{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">◎ USUARIOS / PERMISOS ROOT</span>
+  <span class="page-subtitle">Gestión de accesos y privilegios</span>
+  <span class="timestamp">{{ data.timestamp }}</span>
+</div>
+
+<!-- ALERTAS CRÍTICAS -->
+{% if data.uid0_warning %}
+<div class="alert-box alert-danger">
+  ⚠ CRÍTICO: Múltiples usuarios con UID 0: {{ data.uid0_users | join(', ') }}
+</div>
+{% endif %}
+
+<!-- CHEQUEOS -->
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-title">◈ Chequeos de Seguridad de Usuarios</div>
+  <div class="grid-2">
+  {% for check in data.security_checks %}
+  <div class="check-row">
+    <span class="check-icon" style="color:{% if check.ok %}var(--green){% elif check.severity=='warn' %}var(--amber){% else %}var(--red){% endif %};">
+      {% if check.ok %}✓{% else %}✗{% endif %}
+    </span>
+    <div style="flex:1;">
+      <div class="check-name" style="color:{% if check.ok %}var(--green){% elif check.severity=='warn' %}var(--amber){% else %}var(--red){% endif %};">
+        {{ check.name }}
+      </div>
+      <div class="check-detail">{{ check.detail }}</div>
+    </div>
+    <span class="badge badge-{{ check.severity }}">
+      {% if check.ok %}OK{% elif check.severity == 'warn' %}WARN{% else %}RIESGO{% endif %}
+    </span>
+  </div>
+  {% endfor %}
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- USUARIOS CON SUDO -->
+<div class="card">
+  <div class="card-title">⚑ Usuarios con Privilegios SUDO</div>
+  {% if data.sudo_users %}
+  {% for user in data.sudo_users %}
+  <div class="check-row">
+    <span class="check-icon" style="color:var(--amber);">⚠</span>
+    <span class="check-name">{{ user }}</span>
+    <span class="badge badge-warn">SUDO</span>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin usuarios en grupo sudo detectados</div>
+  {% endif %}
+
+  {% if data.sudoers_rules %}
+  <div class="card-title" style="margin-top:14px;">Reglas /etc/sudoers</div>
+  <pre class="terminal">{% for rule in data.sudoers_rules %}{{ rule }}
+{% endfor %}</pre>
+  {% endif %}
+</div>
+
+<!-- GRUPOS CRÍTICOS -->
+<div class="card">
+  <div class="card-title">◉ Grupos de Seguridad Críticos</div>
+  <table class="table-term">
+    <thead><tr><th>Grupo</th><th>GID</th><th>Miembros</th><th>Riesgo</th></tr></thead>
+    <tbody>
+    {% for g in data.critical_groups %}
+    <tr>
+      <td style="color:var(--amber);">{{ g.name }}</td>
+      <td>{{ g.gid }}</td>
+      <td style="font-size:10px;">{{ g.members | join(', ') if g.members else '—' }}</td>
+      <td>
+        <span class="badge {% if g.count > 0 and g.name in ['docker','shadow','disk'] %}badge-danger{% elif g.count > 0 %}badge-warn{% else %}badge-ok{% endif %}">
+          {{ g.count }} miembros
+        </span>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+</div>
+
+<!-- USUARIOS REALES -->
+<div class="card">
+  <div class="card-title">◎ Usuarios con Acceso al Sistema</div>
+  <table class="table-term">
+    <thead><tr><th>Usuario</th><th>UID</th><th>Shell</th><th>Home</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for u in data.real_users %}
+    <tr>
+      <td style="color:{% if u.is_root %}var(--red){% else %}var(--green){% endif %};">
+        {{ u.username }}{% if u.is_root %} ★{% endif %}
+      </td>
+      <td>{{ u.uid }}</td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.6);">{{ u.shell }}</td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ u.home }}</td>
+      <td>
+        {% if u.can_login %}
+          <span class="badge badge-ok">LOGIN</span>
+        {% else %}
+          <span class="badge badge-info">NOLOGIN</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ESTADO DE CONTRASEÑAS -->
+<div class="card">
+  <div class="card-title">⬡ Estado de Contraseñas</div>
+  {% if not data.shadow_access %}
+  <div class="alert-box alert-warn">⚠ Sin acceso a /etc/shadow — ejecutar como root para ver estado completo</div>
+  {% endif %}
+  {% if data.passwd_status %}
+  <table class="table-term">
+    <thead><tr><th>Usuario</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for p in data.passwd_status[:20] %}
+    <tr>
+      <td>{{ p.user }}</td>
+      <td>
+        {% if p.locked %}
+          <span class="badge badge-info">BLOQUEADO</span>
+        {% elif p.no_password %}
+          <span class="badge badge-danger">SIN CONTRASEÑA</span>
+        {% else %}
+          <span class="badge badge-ok">ACTIVO</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin datos de contraseñas disponibles</div>
+  {% endif %}
+</div>
+{% endblock %}

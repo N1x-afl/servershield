@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Estado del Servidor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">◉ ESTADO DEL SERVIDOR</span>
+  <span class="page-subtitle">Recursos, servicios y red</span>
+  <span class="timestamp">{{ data.timestamp }}</span>
+</div>
+
+<!-- LOAD AVG -->
+<div class="grid-3" style="margin-bottom:16px;">
+  <div class="stat-box">
+    <div class="stat-value">{{ data.load_1 }}</div>
+    <div class="stat-label">Carga 1 min</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ data.load_5 }}</div>
+    <div class="stat-label">Carga 5 min</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value">{{ data.load_15 }}</div>
+    <div class="stat-label">Carga 15 min</div>
+  </div>
+</div>
+
+<div class="grid-2">
+
+<!-- SERVICIOS -->
+<div class="card">
+  <div class="card-title">◈ Servicios del Sistema</div>
+  {% if data.services %}
+  <table class="table-term">
+    <thead><tr><th>Servicio</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for svc in data.services %}
+    <tr>
+      <td>{{ svc.name }}</td>
+      <td>
+        {% if svc.ok %}
+          <span class="badge badge-ok">● {{ svc.status }}</span>
+        {% else %}
+          <span class="badge badge-danger">○ {{ svc.status }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin servicios systemd detectados</div>
+  {% endif %}
+</div>
+
+<!-- RED -->
+<div class="card">
+  <div class="card-title">⊟ Interfaces de Red</div>
+  {% if data.net_ifaces %}
+  <table class="table-term">
+    <thead><tr><th>Interfaz</th><th>Dirección IP</th></tr></thead>
+    <tbody>
+    {% for iface in data.net_ifaces %}
+    <tr><td>{{ iface.iface }}</td><td>{{ iface.ip }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin interfaces detectadas</div>
+  {% endif %}
+</div>
+
+</div>
+
+<!-- TOP PROCESOS -->
+<div class="card">
+  <div class="card-title">⊡ Top Procesos por CPU</div>
+  {% if data.top_procs %}
+  <table class="table-term">
+    <thead><tr><th>Usuario</th><th>PID</th><th>CPU%</th><th>MEM%</th><th>Comando</th></tr></thead>
+    <tbody>
+    {% for proc in data.top_procs %}
+    <tr>
+      <td>{{ proc.user }}</td>
+      <td>{{ proc.pid }}</td>
+      <td>{{ proc.cpu }}%</td>
+      <td>{{ proc.mem }}%</td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.6);">{{ proc.cmd }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin datos de procesos</div>
+  {% endif %}
+</div>
+
+<!-- ÚLTIMOS LOGINS -->
+<div class="card">
+  <div class="card-title">◎ Últimos Accesos al Sistema</div>
+  <pre class="terminal">{% for line in data.last_logins %}{{ line }}
+{% endfor %}</pre>
+</div>
+{% endblock %}

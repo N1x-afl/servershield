@@ -1,0 +1,16 @@
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+.env
+servers.json
+*.bak
+*.key
+*.pem
+.vscode/
+.idea/
+*.log
+{templates,static/
+app_new.py
+app.py.bak

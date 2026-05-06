@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Puertos / Red{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⊟ PUERTOS / RED</span>
+  <span class="page-subtitle">Análisis de exposición de red</span>
+  <span class="timestamp">{{ data.timestamp }}</span>
+</div>
+
+<!-- ESTADÍSTICAS -->
+<div class="grid-3" style="margin-bottom:16px;">
+  <div class="stat-box">
+    <div class="stat-value">{{ data.count_listening }}</div>
+    <div class="stat-label">Puertos en Escucha</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:{% if data.count_dangerous > 0 %}var(--red){% else %}var(--green){% endif %};">
+      {{ data.count_dangerous }}
+    </div>
+    <div class="stat-label">Puertos Peligrosos</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--amber);">{{ data.count_public }}</div>
+    <div class="stat-label">Exposición Pública</div>
+  </div>
+</div>
+
+<!-- RECOMENDACIONES -->
+{% if data.recommendations %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="card-title">⚑ Alertas y Recomendaciones</div>
+  {% for rec in data.recommendations %}
+  <div class="alert-box alert-{{ rec.severity }}">
+    <strong>[Puerto {{ rec.port }} · {{ rec.service }}]</strong> {{ rec.message }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- PUERTOS EN ESCUCHA -->
+<div class="card">
+  <div class="card-title">◉ Puertos en Escucha</div>
+  <table class="table-term">
+    <thead>
+      <tr>
+        <th>Puerto</th>
+        <th>Dirección</th>
+        <th>Servicio</th>
+        <th>Proceso</th>
+        <th>Exposición</th>
+        <th>Riesgo</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for port in data.listening %}
+    <tr>
+      <td style="color:{% if port.dangerous %}var(--red){% else %}var(--green){% endif %};font-weight:bold;">
+        {{ port.port }}
+      </td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ port.addr }}</td>
+      <td>{{ port.service }}</td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.6);">{{ port.process }}</td>
+      <td>
+        {% if port.public %}
+          <span class="badge badge-danger">PÚBLICO</span>
+        {% else %}
+          <span class="badge badge-ok">LOCAL</span>
+        {% endif %}
+      </td>
+      <td>
+        <span class="badge badge-{{ port.risk }}">{{ port.risk | upper }}</span>
+      </td>
+    </tr>
+    {% endfor %}
+    {% if not data.listening %}
+    <tr><td colspan="6" style="color:rgba(0,255,65,0.3);text-align:center;">
+      Sin puertos detectados (requiere permisos elevados)
+    </td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- CONEXIONES ESTABLECIDAS -->
+{% if data.connections %}
+<div class="card">
+  <div class="card-title">⊡ Conexiones Establecidas</div>
+  <table class="table-term">
+    <thead><tr><th>Local</th><th>Remoto</th><th>Proceso</th></tr></thead>
+    <tbody>
+    {% for conn in data.connections %}
+    <tr>
+      <td style="font-size:10px;">{{ conn.local }}</td>
+      <td style="font-size:10px;color:var(--amber);">{{ conn.remote }}</td>
+      <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ conn.process }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="grid-2">
+
+<!-- UFW -->
+<div class="card">
+  <div class="card-title">⬡ Reglas de Firewall (UFW)</div>
+  <pre class="terminal">{% for line in data.ufw_rules %}{{ line }}
+{% endfor %}</pre>
+</div>
+
+<!-- IPTABLES -->
+<div class="card">
+  <div class="card-title">◈ iptables INPUT Chain</div>
+  <pre class="terminal">{% for line in data.iptables_input %}{{ line }}
+{% endfor %}</pre>
+</div>
+
+</div>
+
+<!-- REFERENCIA DE PUERTOS -->
+<div class="card">
+  <div class="card-title">◎ Referencia — Clasificación de Riesgo</div>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:11px;">
+    <div><span class="badge badge-danger">DANGER</span> FTP(21), Telnet(23), SMB(445), RDP(3389), VNC(5900), MongoDB(27017)...</div>
+    <div><span class="badge badge-warn">WARN</span> SMTP(25), SNMP(161), MySQL(3306), Redis(6379), Elasticsearch(9200)...</div>
+    <div><span class="badge badge-ok">OK</span> SSH(22), HTTP(80), HTTPS(443), IMAPS(993)...</div>
+  </div>
+</div>
+{% endblock %}
