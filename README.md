@@ -17,27 +17,17 @@ Interfaz estilo terminal. Multi-servidor vía SSH. Easter egg incluido. 🟢
 
 ## 📸 Vista previa
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ⬡ SERVERSHIELD  │  HARDENING TOOLKIT          ● admin SALIR│
-├──────────────┬──────────────────────────────────────────────┤
-│ NAVEGACIÓN   │                                              │
-│              │   DASHBOARD    Vista general del servidor    │
-│ ◈ Dashboard  │                                              │
-│              │   17.0%    72.7%    98%      420            │
-│ MÓDULOS      │   CPU      RAM      DISCO    PROCESOS        │
-│              │                                              │
-│ ◉ Estado     │   HOSTNAME: NB   KERNEL: 6.17.0-23-generic  │
-│ ⚑ CVE        │   IP: 192.168.10.253   UPTIME: 15 min       │
-│ ⛊ CrowdSec   │   MEMORIA: 11450 MB / 15754 MB              │
-│ ⬡ Seguridad  │                                              │
-│ ◎ Usuarios   │   [ACTIVIDAD DEL TERMINAL]                  │
-│ ⊟ Puertos    │   [STATUS] Todos los módulos cargados ✓     │
-│              │                                              │
-│ INFRAESTRUC. │                                              │
-│ ⊞ Remotos    │                                              │
-└──────────────┴──────────────────────────────────────────────┘
-```
+### 🔐 Login
+![Login](docs/login.png)
+
+### 📊 Dashboard
+![Dashboard](docs/dashboard.png)
+
+### ⛊ CrowdSec IDS
+![CrowdSec](docs/crowdsec.png)
+
+### 🌐 Servidores Remotos
+![Servers](docs/servers.png)
 
 ---
 
