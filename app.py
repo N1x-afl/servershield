@@ -7,15 +7,15 @@ from matrix_mode import parse_args, run_matrix_intro
 from modules import system_info, security_check, cve_check, crowdsec_mod, ports_mod, users_mod
 from modules.remote_ssh import (
     load_servers, add_server, remove_server, get_server,
-    get_remote_stats, get_all_servers_status, test_connection
+    get_remote_stats, test_connection
 )
+from remote_cache import fetch_all_parallel, get_cached, set_cache, invalidate, get_cache_age
 
 app = Flask(__name__)
 app.secret_key = "s3rv3rsh13ld_s3cr3t_k3y_2024"
 USERS = {"admin": "Adm1n@Shield2024", "auditor": "Aud1t@2024"}
 
 def login_required(f):
-    from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user" not in session:
@@ -49,7 +49,8 @@ def logout():
 @login_required
 def dashboard():
     return render_template("dashboard.html", user=session["user"],
-                           role=session["role"], stats=system_info.get_quick_stats(), active="dashboard")
+                           role=session["role"], stats=system_info.get_quick_stats(),
+                           active="dashboard")
 
 @app.route("/status")
 @login_required
@@ -92,9 +93,16 @@ def ports():
 @login_required
 def servers():
     all_servers = load_servers()
-    stats = get_all_servers_status() if all_servers else []
+    # Consultas en paralelo con caché
+    stats = fetch_all_parallel(all_servers, get_remote_stats) if all_servers else []
+    # Calcular edad del caché para mostrar en UI
+    cache_ages = {}
+    for s in all_servers:
+        age = get_cache_age(s["id"])
+        cache_ages[s["id"]] = age
     return render_template("servers.html", user=session["user"], role=session["role"],
-                           servers=all_servers, stats=stats, active="servers")
+                           servers=all_servers, stats=stats,
+                           cache_ages=cache_ages, active="servers")
 
 @app.route("/remote/<path:server_id>")
 @login_required
@@ -102,7 +110,9 @@ def server_detail(server_id):
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
+    # Para el detalle siempre datos frescos
     data = get_remote_stats(server)
+    set_cache(server_id, data)
     return render_template("server_detail.html", user=session["user"], role=session["role"],
                            data=data, active="servers")
 
@@ -121,7 +131,6 @@ def remote_add():
     )
     if not ok:
         return jsonify({"ok": False, "message": msg})
-    # Probar conexión
     server = get_server(f"{d['host']}:{d.get('port', 22)}")
     if server:
         conn_ok, conn_msg = test_connection(server)
@@ -132,6 +141,7 @@ def remote_add():
 @login_required
 def remote_remove(server_id):
     remove_server(server_id)
+    invalidate(server_id)
     return jsonify({"ok": True})
 
 @app.route("/remote/refresh/<path:server_id>")
@@ -139,7 +149,9 @@ def remote_remove(server_id):
 def remote_refresh(server_id):
     server = get_server(server_id)
     if server:
-        get_remote_stats(server)
+        invalidate(server_id)  # Forzar reconsulta
+        data = get_remote_stats(server)
+        set_cache(server_id, data)
     return jsonify({"ok": True})
 
 # ── API ───────────────────────────────────────────────────────────────────────
@@ -151,7 +163,8 @@ def api_stats():
 @app.route("/api/servers")
 @login_required
 def api_servers():
-    return jsonify(get_all_servers_status())
+    all_servers = load_servers()
+    return jsonify(fetch_all_parallel(all_servers, get_remote_stats))
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":

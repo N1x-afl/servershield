@@ -249,8 +249,8 @@
 
   <!-- Seguridad rápida -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-    <span class="badge {% if s.ufw_active %}badge-ok{% else %}badge-danger{% endif %}">
-      UFW {% if s.ufw_active %}ON{% else %}OFF{% endif %}
+    <span class="badge {% if s.ufw_active or s.firewalld_active %}badge-ok{% else %}badge-danger{% endif %}">
+      FW {% if s.ufw_active or s.firewalld_active %}ON{% else %}OFF{% endif %}
     </span>
     <span class="badge {% if not s.ssh_root_login %}badge-ok{% else %}badge-danger{% endif %}">
       ROOT {% if not s.ssh_root_login %}BLOQ{% else %}ABIERTO{% endif %}

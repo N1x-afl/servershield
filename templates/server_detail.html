@@ -1,7 +1,68 @@
 {% extends "base.html" %}
 {% block title %}{{ data.server_name }}{% endblock %}
 
+{% block extra_style %}
+<style>
+.tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    color: rgba(0,255,65,0.45);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+    position: relative;
+    bottom: -1px;
+}
+.tab-btn:hover { color: var(--green); background: rgba(0,255,65,0.03); }
+.tab-btn.active {
+    color: var(--green);
+    background: var(--bg);
+    border-color: var(--border-bright);
+    border-bottom-color: var(--bg);
+    text-shadow: 0 0 8px rgba(0,255,65,0.4);
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.check-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,255,65,0.06);
+    font-size: 11px;
+}
+.check-icon { font-size: 14px; width: 20px; text-align: center; }
+.check-name { flex: 1; }
+.check-detail { font-size: 10px; color: rgba(0,255,65,0.4); margin-top: 2px; }
+
+.port-tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    margin: 2px;
+    border: 1px solid;
+}
+.port-danger { border-color: rgba(255,51,51,0.5); color: var(--red); }
+.port-warn   { border-color: rgba(255,179,0,0.4); color: var(--amber); }
+.port-ok     { border-color: rgba(0,255,65,0.25); color: rgba(0,255,65,0.7); }
+.port-info   { border-color: rgba(0,150,255,0.25); color: #4af; }
+</style>
+{% endblock %}
+
 {% block content %}
+
+<!-- HEADER -->
 <div class="page-header">
   <a href="/servers" style="color:rgba(0,255,65,0.4);text-decoration:none;font-size:11px;">← SERVIDORES</a>
   <span style="color:var(--border);margin:0 8px;">|</span>
@@ -11,167 +72,527 @@
 </div>
 
 {% if not data.connected %}
-<div class="alert-box alert-danger">
-  ✕ No se pudo conectar al servidor — {{ data.error or 'Error desconocido' }}
-</div>
-<div class="card">
-  <div class="card-title">Posibles causas</div>
-  <div class="check-row"><span class="check-icon">→</span><span>Verificar que SSH esté activo en el servidor remoto</span></div>
-  <div class="check-row"><span class="check-icon">→</span><span>Verificar el puerto SSH (default: 22)</span></div>
-  <div class="check-row"><span class="check-icon">→</span><span>Verificar usuario y contraseña/clave</span></div>
-  <div class="check-row"><span class="check-icon">→</span><span>Verificar que el firewall permite la conexión</span></div>
-</div>
+<div class="alert-box alert-danger">✕ No se pudo conectar — {{ data.error or 'Error desconocido' }}</div>
 {% else %}
 
-<!-- STATS -->
-<div class="grid-4" style="margin-bottom:16px;">
+<!-- STATS RÁPIDOS -->
+<div class="grid-4" style="margin-bottom:20px;">
   <div class="stat-box">
     <div class="stat-value">{{ data.cpu_usage }}</div>
     <div class="stat-label">CPU Usage</div>
-    {% set cpu_v = data.cpu_usage|replace('%','')|float if data.cpu_usage != 'N/A' else 0 %}
-    <div class="progress-bar"><div class="progress-fill {% if cpu_v > 80 %}danger{% elif cpu_v > 60 %}warn{% endif %}"
-         style="width:{{ cpu_v }}%"></div></div>
+    {% set cv = data.cpu_usage|replace('%','')|float if data.cpu_usage != 'N/A' else 0 %}
+    <div class="progress-bar"><div class="progress-fill {% if cv>80 %}danger{% elif cv>60 %}warn{% endif %}" style="width:{{cv}}%"></div></div>
   </div>
   <div class="stat-box">
     <div class="stat-value">{{ data.mem_pct }}%</div>
     <div class="stat-label">Memoria RAM</div>
-    <div class="progress-bar"><div class="progress-fill {% if data.mem_pct > 85 %}danger{% elif data.mem_pct > 65 %}warn{% endif %}"
-         style="width:{{ data.mem_pct }}%"></div></div>
+    <div class="progress-bar"><div class="progress-fill {% if data.mem_pct>85 %}danger{% elif data.mem_pct>65 %}warn{% endif %}" style="width:{{data.mem_pct}}%"></div></div>
   </div>
   <div class="stat-box">
     <div class="stat-value">{{ data.disk_pct }}%</div>
     <div class="stat-label">Disco /</div>
-    <div class="progress-bar"><div class="progress-fill {% if data.disk_pct > 85 %}danger{% elif data.disk_pct > 70 %}warn{% endif %}"
-         style="width:{{ data.disk_pct }}%"></div></div>
+    <div class="progress-bar"><div class="progress-fill {% if data.disk_pct>85 %}danger{% elif data.disk_pct>70 %}warn{% endif %}" style="width:{{data.disk_pct}}%"></div></div>
   </div>
   <div class="stat-box">
-    <div class="stat-value" style="color:{% if data.security_score >= 80 %}var(--green){% elif data.security_score >= 50 %}var(--amber){% else %}var(--red){% endif %};">
+    <div class="stat-value" style="color:{% if data.security_score>=80 %}var(--green){% elif data.security_score>=50 %}var(--amber){% else %}var(--red){% endif %};">
       {{ data.security_score }}%
     </div>
     <div class="stat-label">Security Score</div>
   </div>
 </div>
 
-<div class="grid-2">
-
-<!-- INFO -->
-<div class="card">
-  <div class="card-title">◉ Información del Sistema</div>
-  <table class="table-term">
-    <tr><td style="color:rgba(0,255,65,0.4);width:110px;">HOSTNAME</td><td>{{ data.hostname }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">SISTEMA</td><td>{{ data.os }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">KERNEL</td><td>{{ data.kernel }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">IP</td><td>{{ data.ip }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">UPTIME</td><td>{{ data.uptime }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">CPU CORES</td><td>{{ data.cpu_cores }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">MEMORIA</td><td>{{ data.mem_used }} / {{ data.mem_total }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">PROCESOS</td><td>{{ data.procs }}</td></tr>
-    <tr><td style="color:rgba(0,255,65,0.4);">CARGA 1m/5m</td><td>{{ data.load_1 }} / {{ data.load_5 }}</td></tr>
-  </table>
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('general', this)">◉ GENERAL</button>
+  <button class="tab-btn" onclick="switchTab('security', this)">⬡ SEGURIDAD</button>
+  <button class="tab-btn" onclick="switchTab('crowdsec', this)">⛊ CROWDSEC</button>
+  <button class="tab-btn" onclick="switchTab('users', this)">◎ USUARIOS</button>
+  <button class="tab-btn" onclick="switchTab('ports', this)">⊟ PUERTOS</button>
 </div>
 
-<!-- SEGURIDAD -->
-<div class="card">
-  <div class="card-title">⬡ Chequeos de Seguridad</div>
-  <div class="check-row">
-    <span class="check-icon">{% if data.ufw_active %}✓{% else %}✗{% endif %}</span>
-    <span class="check-name" style="color:{% if data.ufw_active %}var(--green){% else %}var(--red){% endif %};">Firewall UFW</span>
-    <span class="badge {% if data.ufw_active %}badge-ok{% else %}badge-danger{% endif %}">
-      {% if data.ufw_active %}ACTIVO{% else %}INACTIVO{% endif %}
-    </span>
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: GENERAL -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-general" class="tab-panel active">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">◉ Información del Sistema</div>
+      <table class="table-term">
+        <tr><td style="color:rgba(0,255,65,0.4);width:110px;">HOSTNAME</td><td>{{ data.hostname }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">SISTEMA</td><td>{{ data.os }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">KERNEL</td><td>{{ data.kernel }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">IP</td><td>{{ data.ip }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">UPTIME</td><td>{{ data.uptime }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">CPU CORES</td><td>{{ data.cpu_cores }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">MEMORIA</td><td>{{ data.mem_used }} / {{ data.mem_total }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">PROCESOS</td><td>{{ data.procs }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">CARGA 1/5/15m</td><td>{{ data.load_1 }} / {{ data.load_5 }} / {{ data.load_15 }}</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">◈ Servicios Detectados</div>
+      {% if data.services %}
+      {% for svc in data.services %}
+      <div class="check-row">
+        <span class="check-icon" style="color:{% if svc.ok %}var(--green){% else %}rgba(0,255,65,0.3){% endif %};">
+          {% if svc.ok %}●{% else %}○{% endif %}
+        </span>
+        <span class="check-name">{{ svc.name }}</span>
+        <span class="badge {% if svc.ok %}badge-ok{% elif svc.status == 'failed' %}badge-danger{% else %}badge-info{% endif %}">
+          {{ svc.status }}
+        </span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin servicios detectados</div>
+      {% endif %}
+    </div>
   </div>
-  <div class="check-row">
-    <span class="check-icon">{% if not data.ssh_root_login %}✓{% else %}✗{% endif %}</span>
-    <span class="check-name" style="color:{% if not data.ssh_root_login %}var(--green){% else %}var(--red){% endif %};">Root Login SSH</span>
-    <span class="badge {% if not data.ssh_root_login %}badge-ok{% else %}badge-danger{% endif %}">
-      {% if not data.ssh_root_login %}BLOQUEADO{% else %}ABIERTO{% endif %}
-    </span>
-  </div>
-  <div class="check-row">
-    <span class="check-icon">{% if data.fail2ban_active %}✓{% else %}○{% endif %}</span>
-    <span class="check-name" style="color:{% if data.fail2ban_active %}var(--green){% else %}var(--amber){% endif %};">Fail2ban</span>
-    <span class="badge {% if data.fail2ban_active %}badge-ok{% else %}badge-warn{% endif %}">
-      {% if data.fail2ban_active %}ACTIVO{% else %}INACTIVO{% endif %}
-    </span>
-  </div>
-  <div class="check-row">
-    <span class="check-icon">{% if data.crowdsec_active %}✓{% else %}○{% endif %}</span>
-    <span class="check-name" style="color:{% if data.crowdsec_active %}var(--green){% else %}var(--amber){% endif %};">CrowdSec IDS</span>
-    <span class="badge {% if data.crowdsec_active %}badge-ok{% else %}badge-warn{% endif %}">
-      {% if data.crowdsec_active %}ACTIVO{% else %}INACTIVO{% endif %}
-    </span>
-  </div>
-  <div class="check-row">
-    <span class="check-icon">{% if data.pending_updates == 0 %}✓{% else %}✗{% endif %}</span>
-    <span class="check-name" style="color:{% if data.pending_updates == 0 %}var(--green){% else %}var(--amber){% endif %};">
-      Actualizaciones pendientes
-    </span>
-    <span class="badge {% if data.pending_updates == 0 %}badge-ok{% elif data.pending_updates > 10 %}badge-danger{% else %}badge-warn{% endif %}">
-      {{ data.pending_updates }} pendientes
-    </span>
+
+  <div class="card">
+    <div class="card-title">◎ Últimos Accesos</div>
+    {% if data.last_logins %}
+    <pre class="terminal">{% for l in data.last_logins %}{{ l }}
+{% endfor %}</pre>
+    {% else %}
+    <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin datos de accesos</div>
+    {% endif %}
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: SEGURIDAD -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-security" class="tab-panel">
+  {% set sec = data.security %}
+
+  <!-- Score -->
+  <div class="card" style="margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+      <span style="font-family:var(--font-display);font-size:36px;font-weight:900;
+        color:{% if sec.score>=80 %}var(--green){% elif sec.score>=50 %}var(--amber){% else %}var(--red){% endif %};
+        text-shadow:0 0 15px currentColor;">{{ sec.score }}%</span>
+      <div>
+        <div style="font-size:12px;letter-spacing:2px;">HARDENING SCORE</div>
+        <div style="font-size:10px;color:rgba(0,255,65,0.4);">{{ sec.pending_updates }} actualizaciones pendientes</div>
+      </div>
+    </div>
+    <div class="progress-bar" style="height:10px;">
+      <div class="progress-fill {% if sec.score<50 %}danger{% elif sec.score<80 %}warn{% endif %}" style="width:{{sec.score}}%"></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- FIREWALL -->
+    <div class="card">
+      <div class="card-title">⊟ Firewall</div>
+      {% if sec.ufw_active %}
+      <div class="alert-box alert-ok" style="margin-bottom:10px;">✓ UFW activo</div>
+      {% elif sec.firewalld_active %}
+      <div class="alert-box alert-ok" style="margin-bottom:10px;">✓ firewalld activo</div>
+      {% else %}
+      <div class="alert-box alert-danger" style="margin-bottom:10px;">✗ Sin firewall activo</div>
+      {% endif %}
+      <pre class="terminal">{{ sec.ufw_output }}</pre>
+    </div>
+
+    <!-- SSH -->
+    <div class="card">
+      <div class="card-title">⊡ Chequeos SSH</div>
+      {% for check in sec.ssh_checks %}
+      <div class="check-row">
+        <span class="check-icon" style="color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">
+          {% if check.ok %}✓{% else %}✗{% endif %}
+        </span>
+        <div style="flex:1;">
+          <div class="check-name" style="color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">{{ check.name }}</div>
+          {% if not check.ok %}<div class="check-detail" style="color:var(--amber);">→ {{ check.rec }}</div>{% endif %}
+        </div>
+        <span class="badge {% if check.ok %}badge-ok{% else %}badge-danger{% endif %}">{% if check.ok %}OK{% else %}FALLA{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+  <!-- SYSCTL -->
+  <div class="card">
+    <div class="card-title">◈ Controles del Kernel (sysctl)</div>
+    <div class="grid-2">
+    {% for check in sec.sysctl_checks %}
+    <div class="check-row">
+      <span class="check-icon" style="color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">{% if check.ok %}✓{% else %}✗{% endif %}</span>
+      <div style="flex:1;">
+        <div class="check-name" style="color:{% if check.ok %}var(--green){% else %}var(--red){% endif %};">{{ check.name }}</div>
+        <div class="check-detail">{{ check.key }} = {{ check.value }}</div>
+      </div>
+      <span class="badge {% if check.ok %}badge-ok{% else %}badge-danger{% endif %}">{% if check.ok %}OK{% else %}FALLA{% endif %}</span>
+    </div>
+    {% endfor %}
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- FAIL2BAN -->
+    <div class="card">
+      <div class="card-title">⬡ Fail2ban</div>
+      {% if sec.fail2ban_active %}
+      <div class="alert-box alert-ok" style="margin-bottom:10px;">✓ Fail2ban activo</div>
+      {% else %}
+      <div class="alert-box alert-warn" style="margin-bottom:10px;">✗ Fail2ban no activo</div>
+      {% endif %}
+      <pre class="terminal">{{ sec.fail2ban_status }}</pre>
+    </div>
+
+    <!-- SELinux / AppArmor -->
+    <div class="card">
+      <div class="card-title">◉ Control Mandatorio de Acceso</div>
+      <div class="check-row">
+        <span class="check-icon">{% if sec.selinux_enforcing %}✓{% else %}○{% endif %}</span>
+        <span class="check-name">SELinux</span>
+        <span class="badge {% if sec.selinux_enforcing %}badge-ok{% else %}badge-info{% endif %}">{{ sec.selinux }}</span>
+      </div>
+      <div class="check-row">
+        <span class="check-icon">○</span>
+        <span class="check-name">AppArmor</span>
+        <span class="badge badge-info">{{ sec.apparmor[:30] if sec.apparmor else 'N/A' }}</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SUID -->
+  {% if sec.suid_files %}
+  <div class="card">
+    <div class="card-title">⚑ Archivos SUID/SGID</div>
+    <pre class="terminal">{% for f in sec.suid_files %}{{ f }}
+{% endfor %}</pre>
+  </div>
+  {% endif %}
 </div>
 
-<div class="grid-2">
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: CROWDSEC -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-crowdsec" class="tab-panel">
+  {% set cs = data.crowdsec %}
 
-<!-- PUERTOS -->
-<div class="card">
-  <div class="card-title">⊟ Puertos en Escucha</div>
-  {% if data.open_ports %}
-  <div style="display:flex;flex-wrap:wrap;gap:4px;">
-    {% set dangerous = [21,23,135,139,445,3389,5900,6379,9200,27017] %}
-    {% for p in data.open_ports %}
-      {% set pnum = p|int %}
-      <span style="display:inline-block;font-family:var(--font-mono);font-size:10px;padding:3px 8px;
-        border:1px solid {% if pnum in dangerous %}rgba(255,51,51,0.4){% else %}rgba(0,255,65,0.2){% endif %};
-        color:{% if pnum in dangerous %}var(--red){% else %}rgba(0,255,65,0.7){% endif %};">
-        {{ p }}
-      </span>
+  {% if not cs.available %}
+  <div class="alert-box alert-warn">⚠ CrowdSec no está instalado en este servidor</div>
+  <div class="card">
+    <div class="card-title">◈ Instrucciones de instalación</div>
+    <pre class="terminal">{{ cs.install_hint }}</pre>
+  </div>
+  {% else %}
+
+  <div class="grid-4" style="margin-bottom:16px;">
+    <div class="stat-box">
+      <div class="stat-value" style="color:{% if cs.service_active %}var(--green){% else %}var(--red){% endif %};">
+        {% if cs.service_active %}ON{% else %}OFF{% endif %}
+      </div>
+      <div class="stat-label">Servicio</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:{% if cs.decisions_count>0 %}var(--red){% else %}var(--green){% endif %};">{{ cs.decisions_count }}</div>
+      <div class="stat-label">IPs Baneadas</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:{% if cs.alerts_count>0 %}var(--amber){% else %}var(--green){% endif %};">{{ cs.alerts_count }}</div>
+      <div class="stat-label">Alertas</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">{{ cs.bouncers|length }}</div>
+      <div class="stat-label">Bouncers</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- DECISIONES -->
+    <div class="card">
+      <div class="card-title">⚑ IPs Baneadas</div>
+      {% if cs.decisions %}
+      <table class="table-term">
+        <thead><tr><th>IP</th><th>Escenario</th><th>Acción</th><th>Duración</th></tr></thead>
+        <tbody>
+        {% for d in cs.decisions %}
+        <tr>
+          <td style="color:var(--red);">{{ d.ip }}</td>
+          <td style="font-size:10px;">{{ d.scenario[:30] }}</td>
+          <td><span class="badge badge-danger">{{ d.action }}</span></td>
+          <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ d.duration }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="alert-box alert-ok">✓ Sin decisiones activas — sistema limpio</div>
+      {% endif %}
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="card">
+      <div class="card-title">◈ Alertas Recientes</div>
+      {% if cs.alerts %}
+      <table class="table-term">
+        <thead><tr><th>Escenario</th><th>IP</th><th>Fecha</th></tr></thead>
+        <tbody>
+        {% for a in cs.alerts %}
+        <tr>
+          <td style="font-size:10px;color:var(--amber);">{{ a.scenario[:30] }}</td>
+          <td style="color:var(--red);">{{ a.ip }}</td>
+          <td style="font-size:9px;color:rgba(0,255,65,0.4);">{{ a.created_at }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="alert-box alert-ok">✓ Sin alertas recientes</div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- BOUNCERS -->
+  <div class="card">
+    <div class="card-title">⬡ Bouncers</div>
+    {% if cs.bouncers %}
+    <table class="table-term">
+      <thead><tr><th>Nombre</th><th>Tipo</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for b in cs.bouncers %}
+      <tr>
+        <td>{{ b.name }}</td>
+        <td><span class="badge badge-info">{{ b.type or 'N/A' }}</span></td>
+        <td><span class="badge {% if b.active %}badge-ok{% else %}badge-warn{% endif %}">{% if b.active %}ACTIVO{% else %}INACTIVO{% endif %}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="alert-box alert-warn">⚠ Sin bouncers — instalar cs-firewall-bouncer para bloqueo efectivo</div>
+    {% endif %}
+  </div>
+
+  {% if cs.recent_logs %}
+  <div class="card">
+    <div class="card-title">⊡ Log Reciente</div>
+    <pre class="terminal">{% for l in cs.recent_logs %}{{ l }}
+{% endfor %}</pre>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: USUARIOS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-users" class="tab-panel">
+  {% set usr = data.users %}
+
+  {% if usr.uid0_warning %}
+  <div class="alert-box alert-danger">⚠ CRÍTICO: Múltiples usuarios con UID 0: {{ usr.uid0_users | join(', ') }}</div>
+  {% endif %}
+
+  <!-- Chequeos -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">◈ Chequeos de Seguridad</div>
+    <div class="grid-2">
+    {% for check in usr.security_checks %}
+    <div class="check-row">
+      <span class="check-icon" style="color:{% if check.ok %}var(--green){% elif check.severity=='warn' %}var(--amber){% else %}var(--red){% endif %};">{% if check.ok %}✓{% else %}✗{% endif %}</span>
+      <div style="flex:1;">
+        <div class="check-name" style="color:{% if check.ok %}var(--green){% elif check.severity=='warn' %}var(--amber){% else %}var(--red){% endif %};">{{ check.name }}</div>
+        <div class="check-detail">{{ check.detail }}</div>
+      </div>
+      <span class="badge badge-{{ check.severity }}">{% if check.ok %}OK{% elif check.severity=='warn' %}WARN{% else %}RIESGO{% endif %}</span>
+    </div>
+    {% endfor %}
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- USUARIOS SUDO -->
+    <div class="card">
+      <div class="card-title">⚑ Usuarios con SUDO</div>
+      {% if usr.sudo_users %}
+      {% for u in usr.sudo_users %}
+      <div class="check-row">
+        <span class="check-icon" style="color:var(--amber);">⚠</span>
+        <span class="check-name">{{ u }}</span>
+        <span class="badge badge-warn">SUDO</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin usuarios sudo detectados</div>
+      {% endif %}
+    </div>
+
+    <!-- GRUPOS CRÍTICOS -->
+    <div class="card">
+      <div class="card-title">◉ Grupos Críticos</div>
+      <table class="table-term">
+        <thead><tr><th>Grupo</th><th>GID</th><th>Miembros</th></tr></thead>
+        <tbody>
+        {% for g in usr.critical_groups %}
+        <tr>
+          <td style="color:var(--amber);">{{ g.name }}</td>
+          <td style="font-size:10px;">{{ g.gid }}</td>
+          <td>
+            <span class="badge {% if g.count>0 and g.name in ['docker','shadow','disk'] %}badge-danger{% elif g.count>0 %}badge-warn{% else %}badge-ok{% endif %}">
+              {{ g.count }} miembros
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- USUARIOS DEL SISTEMA -->
+  <div class="card">
+    <div class="card-title">◎ Usuarios con Acceso</div>
+    <table class="table-term">
+      <thead><tr><th>Usuario</th><th>UID</th><th>Shell</th><th>Home</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for u in usr.real_users %}
+      <tr>
+        <td style="color:{% if u.is_root %}var(--red){% else %}var(--green){% endif %};">
+          {{ u.username }}{% if u.is_root %} ★{% endif %}
+        </td>
+        <td>{{ u.uid }}</td>
+        <td style="font-size:10px;color:rgba(0,255,65,0.6);">{{ u.shell }}</td>
+        <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ u.home }}</td>
+        <td>
+          {% if u.can_login %}<span class="badge badge-ok">LOGIN</span>
+          {% else %}<span class="badge badge-info">NOLOGIN</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ESTADO CONTRASEÑAS -->
+  {% if usr.passwd_status %}
+  <div class="card">
+    <div class="card-title">⬡ Estado de Contraseñas</div>
+    <table class="table-term">
+      <thead><tr><th>Usuario</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for p in usr.passwd_status[:15] %}
+      <tr>
+        <td>{{ p.user }}</td>
+        <td>
+          {% if p.locked %}<span class="badge badge-info">BLOQUEADO</span>
+          {% elif p.no_password %}<span class="badge badge-danger">SIN CONTRASEÑA</span>
+          {% else %}<span class="badge badge-ok">ACTIVO</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: PUERTOS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="tab-ports" class="tab-panel">
+  {% set pts = data.ports %}
+
+  <!-- Stats -->
+  <div class="grid-3" style="margin-bottom:16px;">
+    <div class="stat-box">
+      <div class="stat-value">{{ pts.count_total }}</div>
+      <div class="stat-label">En Escucha</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:{% if pts.count_dangerous>0 %}var(--red){% else %}var(--green){% endif %};">{{ pts.count_dangerous }}</div>
+      <div class="stat-label">Peligrosos</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" style="color:var(--amber);">{{ pts.count_public }}</div>
+      <div class="stat-label">Exposición Pública</div>
+    </div>
+  </div>
+
+  <!-- Alertas -->
+  {% if pts.recommendations %}
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">⚑ Alertas</div>
+    {% for rec in pts.recommendations %}
+    <div class="alert-box alert-{{ rec.severity }}">
+      <strong>[{{ rec.port }} · {{ rec.service }}]</strong> {{ rec.message }}
+    </div>
     {% endfor %}
   </div>
-  {% else %}
-  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin datos de puertos</div>
   {% endif %}
-</div>
 
-<!-- SERVICIOS -->
-<div class="card">
-  <div class="card-title">◈ Servicios Detectados</div>
-  {% if data.services %}
-  {% for svc, status in data.services.items() %}
-  <div class="check-row">
-    <span class="check-icon">{% if status == 'active' %}✓{% else %}○{% endif %}</span>
-    <span class="check-name">{{ svc }}</span>
-    <span class="badge {% if status == 'active' %}badge-ok{% else %}badge-info{% endif %}">{{ status }}</span>
+  <!-- Tabla puertos -->
+  <div class="card">
+    <div class="card-title">◉ Puertos en Escucha</div>
+    <table class="table-term">
+      <thead><tr><th>Puerto</th><th>Dirección</th><th>Servicio</th><th>Proceso</th><th>Exposición</th><th>Riesgo</th></tr></thead>
+      <tbody>
+      {% for p in pts.listening %}
+      <tr>
+        <td style="color:{% if p.dangerous %}var(--red){% else %}var(--green){% endif %};font-weight:bold;">{{ p.port }}</td>
+        <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ p.addr }}</td>
+        <td>{{ p.service }}</td>
+        <td style="font-size:10px;color:rgba(0,255,65,0.6);">{{ p.process }}</td>
+        <td>{% if p.public %}<span class="badge badge-danger">PÚBLICO</span>{% else %}<span class="badge badge-ok">LOCAL</span>{% endif %}</td>
+        <td><span class="badge badge-{{ p.risk }}">{{ p.risk|upper }}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
-  {% endfor %}
-  {% else %}
-  <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin servicios detectados</div>
+
+  <!-- Conexiones -->
+  {% if pts.connections %}
+  <div class="card">
+    <div class="card-title">⊡ Conexiones Establecidas</div>
+    <table class="table-term">
+      <thead><tr><th>Local</th><th>Remoto</th></tr></thead>
+      <tbody>
+      {% for c in pts.connections %}
+      <tr>
+        <td style="font-size:10px;">{{ c.local }}</td>
+        <td style="font-size:10px;color:var(--amber);">{{ c.remote }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% endif %}
 </div>
 
-</div>
-
-<!-- ÚLTIMOS LOGINS -->
-{% if data.last_logins %}
-<div class="card">
-  <div class="card-title">◎ Últimos Accesos</div>
-  <pre class="terminal">{% for l in data.last_logins %}{{ l }}
-{% endfor %}</pre>
-</div>
 {% endif %}
 
-{% endif %}
-
-<div style="margin-top:16px;">
-  <a href="/servers" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">
-    ← Volver a todos los servidores
-  </a>
-  &nbsp;&nbsp;
-  <a href="/remote/{{ data.server_id }}" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">
-    ⟳ Actualizar datos
-  </a>
+<!-- Volver -->
+<div style="margin-top:20px;display:flex;gap:20px;">
+  <a href="/servers" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">← Volver a servidores</a>
+  <a href="/remote/{{ data.server_id }}" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">⟳ Actualizar</a>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
 {% endblock %}
