@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+
+{% block extra_style %}
+<style>
+.settings-tabs {
+    display: flex; gap: 2px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+.stab {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    color: rgba(0,255,65,0.45);
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 2px;
+    padding: 9px 18px; cursor: pointer;
+    transition: all 0.15s; text-transform: uppercase;
+    position: relative; bottom: -1px;
+}
+.stab:hover { color: var(--green); background: rgba(0,255,65,0.03); }
+.stab.active {
+    color: var(--green); background: var(--bg);
+    border-color: var(--border-bright);
+    border-bottom-color: var(--bg);
+    text-shadow: 0 0 8px rgba(0,255,65,0.4);
+}
+.stab-panel { display: none; }
+.stab-panel.active { display: block; }
+
+.form-group { margin-bottom: 16px; }
+.form-label {
+    display: block; font-size: 9px;
+    letter-spacing: 3px; color: rgba(0,255,65,0.5);
+    text-transform: uppercase; margin-bottom: 6px;
+}
+.form-input {
+    width: 100%; background: rgba(0,255,65,0.03);
+    border: 1px solid var(--border); color: var(--green);
+    font-family: var(--font-mono); font-size: 13px;
+    padding: 10px 12px; outline: none; transition: all 0.2s;
+}
+.form-input:focus {
+    border-color: var(--green-dim);
+    box-shadow: 0 0 10px rgba(0,255,65,0.08);
+}
+.form-input::placeholder { color: rgba(0,255,65,0.2); }
+.form-select {
+    width: 100%; background: var(--panel);
+    border: 1px solid var(--border); color: var(--green);
+    font-family: var(--font-mono); font-size: 13px;
+    padding: 10px 12px; outline: none;
+}
+.btn-save {
+    background: transparent; border: 1px solid var(--green-dim);
+    color: var(--green); font-family: var(--font-display);
+    font-size: 10px; font-weight: 700; letter-spacing: 3px;
+    padding: 11px 24px; cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+}
+.btn-save::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--green); transform: translateX(-101%);
+    transition: transform 0.25s ease; z-index: 0;
+}
+.btn-save:hover::before { transform: translateX(0); }
+.btn-save:hover { color: #000; }
+.btn-save span { position: relative; z-index: 1; }
+
+.btn-del {
+    background: transparent; border: 1px solid rgba(255,51,51,0.4);
+    color: var(--red); font-family: var(--font-mono);
+    font-size: 10px; padding: 6px 12px; cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-del:hover { background: rgba(255,51,51,0.1); }
+
+.user-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid rgba(0,255,65,0.07);
+}
+.user-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(0,255,65,0.08); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: var(--green); flex-shrink: 0;
+}
+.flash-msg {
+    padding: 10px 14px; font-size: 11px;
+    margin-bottom: 16px; display: flex;
+    align-items: center; gap: 8px;
+}
+.flash-ok     { background: rgba(0,255,65,0.05);  border: 1px solid rgba(0,255,65,0.3);  color: var(--green); }
+.flash-error  { background: rgba(255,51,51,0.06); border: 1px solid rgba(255,51,51,0.3); color: var(--red); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⚙ CONFIGURACIÓN</span>
+  <span class="page-subtitle">Gestión de usuarios y parámetros del sistema</span>
+</div>
+
+{% if flash_msg %}
+<div class="flash-msg flash-{{ flash_type }}">
+  {% if flash_type == 'ok' %}✓{% else %}✕{% endif %} {{ flash_msg }}
+</div>
+{% endif %}
+
+<!-- TABS -->
+<div class="settings-tabs">
+  <button class="stab {% if active_tab == 'password' or not active_tab %}active{% endif %}"
+          onclick="switchStab('password', this)">🔑 CONTRASEÑA</button>
+  {% if role == 'admin' %}
+  <button class="stab {% if active_tab == 'users' %}active{% endif %}"
+          onclick="switchStab('users', this)">◎ USUARIOS</button>
+  <button class="stab {% if active_tab == 'app' %}active{% endif %}"
+          onclick="switchStab('app', this)">⚙ APP</button>
+  {% endif %}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: CAMBIAR CONTRASEÑA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="stab-password" class="stab-panel {% if active_tab == 'password' or not active_tab %}active{% endif %}">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🔑 Cambiar Mi Contraseña</div>
+      <form method="POST" action="/settings/password">
+        <div class="form-group">
+          <label class="form-label">Contraseña actual</label>
+          <input class="form-input" type="password" name="current_password"
+                 placeholder="••••••••" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nueva contraseña</label>
+          <input class="form-input" type="password" name="new_password"
+                 placeholder="Mínimo 8 caracteres" required minlength="8"
+                 id="new_pw">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirmar nueva contraseña</label>
+          <input class="form-input" type="password" name="confirm_password"
+                 placeholder="Repetir contraseña" required id="confirm_pw">
+        </div>
+        <div id="pw-match-msg" style="font-size:10px;margin-bottom:10px;"></div>
+        <button class="btn-save" type="submit"><span>✓ CAMBIAR CONTRASEÑA</span></button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">◈ Requisitos de Contraseña</div>
+      <div class="check-row">
+        <span class="check-icon" style="color:var(--green);">✓</span>
+        <span>Mínimo 8 caracteres</span>
+      </div>
+      <div class="check-row">
+        <span class="check-icon" style="color:var(--amber);">→</span>
+        <span>Recomendado: mayúsculas, números y símbolos</span>
+      </div>
+      <div class="check-row">
+        <span class="check-icon" style="color:var(--amber);">→</span>
+        <span>Evitar contraseñas genéricas o secuenciales</span>
+      </div>
+      <div class="check-row">
+        <span class="check-icon" style="color:var(--amber);">→</span>
+        <span>No reutilizar contraseñas anteriores</span>
+      </div>
+      <div style="margin-top:16px;padding:10px;background:rgba(0,255,65,0.03);border:1px solid var(--border);">
+        <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:2px;margin-bottom:6px;">SESIÓN ACTUAL</div>
+        <div style="font-size:12px;">Usuario: <span style="color:var(--green);">{{ user }}</span></div>
+        <div style="font-size:12px;">Rol: <span class="badge {% if role == 'admin' %}badge-ok{% else %}badge-info{% endif %}">{{ role }}</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: GESTIÓN DE USUARIOS (solo admin) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+{% if role == 'admin' %}
+<div id="stab-users" class="stab-panel {% if active_tab == 'users' %}active{% endif %}">
+
+  <!-- Lista de usuarios -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">◎ Usuarios Registrados</div>
+    {% for u in users_list %}
+    <div class="user-row">
+      <div class="user-avatar">{{ u.username[0].upper() }}</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:bold;color:var(--green);">{{ u.username }}</div>
+        <div style="font-size:10px;color:rgba(0,255,65,0.4);">
+          Creado: {{ u.created_at }} · Último acceso: {{ u.last_login or 'Nunca' }}
+        </div>
+      </div>
+      <span class="badge {% if u.role == 'admin' %}badge-ok{% else %}badge-info{% endif %}">{{ u.role }}</span>
+
+      <!-- Cambiar contraseña por admin -->
+      <button class="btn-save" style="font-size:9px;padding:6px 10px;"
+              onclick="showAdminPwModal('{{ u.username }}')">
+        <span>🔑</span>
+      </button>
+
+      <!-- Eliminar usuario -->
+      {% if u.username != user and u.username != 'admin' %}
+      <form method="POST" action="/settings/users/delete" style="margin:0;">
+        <input type="hidden" name="username" value="{{ u.username }}">
+        <button class="btn-del" type="submit"
+                onclick="return confirm('¿Eliminar usuario {{ u.username }}?')">✕</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Agregar usuario -->
+  <div class="card">
+    <div class="card-title">＋ Agregar Nuevo Usuario</div>
+    <form method="POST" action="/settings/users/add">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Nombre de usuario</label>
+          <input class="form-input" type="text" name="username"
+                 placeholder="ej: operador1" required minlength="3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rol</label>
+          <select class="form-select" name="role">
+            <option value="auditor">Auditor — solo visualización</option>
+            <option value="admin">Admin — acceso total</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input class="form-input" type="password" name="password"
+                 placeholder="Mínimo 8 caracteres" required minlength="8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirmar contraseña</label>
+          <input class="form-input" type="password" name="confirm_password"
+                 placeholder="Repetir contraseña" required>
+        </div>
+      </div>
+      <button class="btn-save" type="submit"><span>＋ CREAR USUARIO</span></button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: CONFIGURACIÓN APP (solo admin) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="stab-app" class="stab-panel {% if active_tab == 'app' %}active{% endif %}">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">⚙ Parámetros del Servidor Web</div>
+      <form method="POST" action="/settings/app">
+        <div class="form-group">
+          <label class="form-label">Puerto</label>
+          <input class="form-input" type="number" name="port"
+                 value="{{ app_config.port }}" min="1024" max="65535">
+          <div style="font-size:9px;color:rgba(0,255,65,0.3);margin-top:4px;">
+            Reiniciá la app para aplicar cambios de puerto
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nombre de la aplicación</label>
+          <input class="form-input" type="text" name="app_name"
+                 value="{{ app_config.app_name }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Timeout de sesión (minutos)</label>
+          <input class="form-input" type="number" name="session_timeout"
+                 value="{{ app_config.session_timeout }}" min="5" max="480">
+        </div>
+        <button class="btn-save" type="submit"><span>✓ GUARDAR CONFIGURACIÓN</span></button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="card-title">◈ Información del Sistema</div>
+      <table class="table-term">
+        <tr><td style="color:rgba(0,255,65,0.4);width:140px;">Puerto actual</td>
+            <td>{{ app_config.port }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">Host</td>
+            <td>{{ app_config.host }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">Timeout sesión</td>
+            <td>{{ app_config.session_timeout }} min</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">Total usuarios</td>
+            <td>{{ users_list|length }}</td></tr>
+        <tr><td style="color:rgba(0,255,65,0.4);">Admins</td>
+            <td>{{ users_list|selectattr('role','eq','admin')|list|length }}</td></tr>
+      </table>
+      <div style="margin-top:14px;" class="alert-box alert-warn">
+        ⚠ Cambiar el puerto requiere reiniciar la app y actualizar el servicio systemd si está instalado.
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- MODAL cambiar contraseña por admin -->
+{% if role == 'admin' %}
+<div id="admin-pw-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border:1px solid var(--border-bright);padding:28px;width:min(420px,90vw);">
+    <div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--green);letter-spacing:2px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:10px;">
+      🔑 CAMBIAR CONTRASEÑA DE <span id="modal-username" style="color:var(--amber);"></span>
+    </div>
+    <form method="POST" action="/settings/users/admin-password">
+      <input type="hidden" name="target_username" id="modal-target">
+      <div class="form-group">
+        <label class="form-label">Nueva contraseña</label>
+        <input class="form-input" type="password" name="new_password"
+               placeholder="Mínimo 8 caracteres" required minlength="8">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar contraseña</label>
+        <input class="form-input" type="password" name="confirm_password"
+               placeholder="Repetir contraseña" required>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="btn-save" type="submit"><span>✓ CAMBIAR</span></button>
+        <button type="button" onclick="closeAdminPwModal()"
+                style="background:transparent;border:1px solid var(--border);color:rgba(0,255,65,0.5);font-family:var(--font-mono);font-size:10px;padding:10px 16px;cursor:pointer;">
+          CANCELAR
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchStab(name, btn) {
+  document.querySelectorAll('.stab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+  document.getElementById('stab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Validar que contraseñas coincidan
+const newPw = document.getElementById('new_pw');
+const confirmPw = document.getElementById('confirm_pw');
+const matchMsg = document.getElementById('pw-match-msg');
+if (confirmPw) {
+  confirmPw.addEventListener('input', () => {
+    if (!confirmPw.value) { matchMsg.textContent = ''; return; }
+    if (newPw.value === confirmPw.value) {
+      matchMsg.textContent = '✓ Las contraseñas coinciden';
+      matchMsg.style.color = 'var(--green)';
+    } else {
+      matchMsg.textContent = '✕ Las contraseñas no coinciden';
+      matchMsg.style.color = 'var(--red)';
+    }
+  });
+}
+
+function showAdminPwModal(username) {
+  document.getElementById('modal-username').textContent = username.toUpperCase();
+  document.getElementById('modal-target').value = username;
+  document.getElementById('admin-pw-modal').style.display = 'flex';
+}
+function closeAdminPwModal() {
+  document.getElementById('admin-pw-modal').style.display = 'none';
+}
+</script>
+{% endblock %}
