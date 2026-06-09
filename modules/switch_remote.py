@@ -176,7 +176,7 @@ def get_switch_stats(server):
         result["services"]     = []
         result["last_logins"]  = []
         result["vlans"]        = _parse_vlans(outputs.get("vlans", ""), vendor)
-        result["interfaces"]   = _parse_interfaces(outputs.get("interfaces", ""), vendor)
+        result["interfaces"]   = _parse_interfaces(outputs.get("interfaces", ""), vendor, outputs)
         result["switch_users"] = _parse_users(outputs.get("users", ""), vendor)
 
         security = _analyze_security(outputs, vendor, ver_out)
@@ -242,6 +242,7 @@ def _get_commands(vendor):
             "uptime":     "get system performance status",
             "vlans":      "show system interface",
             "interfaces": "show system interface",
+            "interfaces_phy": "get system interface physical",
             "users":      "show system admin",
             "ssh":        "show system global",
             "telnet":     "show system global",
@@ -494,7 +495,9 @@ def _parse_mem_total(mem_out, vendor):
     return "N/A"
 
 
-def _parse_interfaces(iface_out, vendor):
+def _parse_interfaces(iface_out, vendor, outputs=None):
+    if outputs is None:
+        outputs = {}
     """Parser específico para cada vendor"""
     interfaces = []
 
@@ -576,6 +579,34 @@ def _parse_interfaces(iface_out, vendor):
         if current_iface and current_data:
             if current_data.get("iface_type", "physical") == "physical":
                 interfaces.append(current_data)
+
+        # Enriquecer con IPs dinámicas de get system interface physical
+        # Formato: ==[wan2] / ip: 192.168.0.170 / status: up
+        phy_out = iface_out  # fallback
+        # El output físico se pasa como segundo parámetro via outputs
+        phy_raw = outputs.get("interfaces_phy", "") if hasattr(iface_out, "__class__") else ""
+        current_phy = None
+        for line in phy_raw.splitlines():
+            m = re.match(r"\s*==\[(\w+)\]", line)
+            if m:
+                current_phy = m.group(1)
+                continue
+            if current_phy:
+                m_ip = re.search(r"ip:\s+([\d\.]+)\s+[\d\.]+", line)
+                if m_ip and m_ip.group(1) != "0.0.0.0":
+                    # Actualizar IP en la interfaz correspondiente
+                    for iface in interfaces:
+                        base_name = iface["name"].split(" (")[0]
+                        if base_name == current_phy and not iface.get("ip"):
+                            iface["ip"] = m_ip.group(1)
+                            iface["service"] = f"Interfaz de red ({m_ip.group(1)})"
+                m_st = re.search(r"status:\s+(\w+)", line)
+                if m_st:
+                    for iface in interfaces:
+                        base_name = iface["name"].split(" (")[0]
+                        if base_name == current_phy:
+                            iface["status"] = m_st.group(1)
+                            iface["up"] = m_st.group(1) == "up"
 
     elif vendor == "cisco":
         for line in iface_out.splitlines():
