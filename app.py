@@ -10,17 +10,19 @@ from modules.remote_ssh import (
     load_servers, add_server, remove_server, get_server,
     get_remote_stats, test_connection
 )
+from modules.windows_remote import get_windows_stats, test_connection as win_test_connection
+from modules.switch_remote import get_switch_stats, test_connection as switch_test_connection
 from modules.config_manager import (
     initialize_config, verify_user, change_password,
     admin_change_password, add_user, remove_user,
     get_users, get_app_config, update_app_config
 )
+from modules.updater import check_for_updates, apply_update
 from remote_cache import fetch_all_parallel, get_cached, set_cache, invalidate, get_cache_age
 
 app = Flask(__name__)
 app.secret_key = "s3rv3rsh13ld_s3cr3t_k3y_2024"
 
-# Inicializar config con usuarios por defecto si no existe
 initialize_config({
     "admin":   ("Adm1n@Shield2024", "admin"),
     "auditor": ("Aud1t@2024",       "auditor")
@@ -45,6 +47,16 @@ def admin_required(f):
             return redirect(url_for("dashboard"))
         return f(*args, **kwargs)
     return decorated
+
+
+def _fetch_server(server):
+    """Dispatcher: Linux SSH, Windows WinRM o Switch SSH según os_type"""
+    os_type = server.get("os_type", "linux")
+    if os_type == "windows":
+        return get_windows_stats(server)
+    elif os_type == "switch":
+        return get_switch_stats(server)
+    return get_remote_stats(server)
 
 
 # ── AUTH ──────────────────────────────────────────────────────────────────────
@@ -77,55 +89,42 @@ def logout():
 def dashboard():
     return render_template("dashboard.html", user=session["user"],
                            role=session["role"],
-                           stats=system_info.get_quick_stats(),
-                           active="dashboard")
-
+                           stats=system_info.get_quick_stats(), active="dashboard")
 
 @app.route("/status")
 @login_required
 def status():
-    return render_template("status.html", user=session["user"],
-                           role=session["role"],
+    return render_template("status.html", user=session["user"], role=session["role"],
                            data=system_info.get_full_status(), active="status")
-
 
 @app.route("/cve")
 @login_required
 def cve():
-    return render_template("cve.html", user=session["user"],
-                           role=session["role"],
+    return render_template("cve.html", user=session["user"], role=session["role"],
                            data=cve_check.get_cve_info(), active="cve")
-
 
 @app.route("/crowdsec")
 @login_required
 def crowdsec():
-    return render_template("crowdsec.html", user=session["user"],
-                           role=session["role"],
+    return render_template("crowdsec.html", user=session["user"], role=session["role"],
                            data=crowdsec_mod.get_crowdsec_status(), active="crowdsec")
-
 
 @app.route("/security")
 @login_required
 def security():
-    return render_template("security.html", user=session["user"],
-                           role=session["role"],
+    return render_template("security.html", user=session["user"], role=session["role"],
                            data=security_check.get_security_status(), active="security")
-
 
 @app.route("/users")
 @login_required
 def users():
-    return render_template("users.html", user=session["user"],
-                           role=session["role"],
+    return render_template("users.html", user=session["user"], role=session["role"],
                            data=users_mod.get_users_info(), active="users")
-
 
 @app.route("/ports")
 @login_required
 def ports():
-    return render_template("ports.html", user=session["user"],
-                           role=session["role"],
+    return render_template("ports.html", user=session["user"], role=session["role"],
                            data=ports_mod.get_ports_info(), active="ports")
 
 
@@ -134,10 +133,9 @@ def ports():
 @login_required
 def servers():
     all_servers = load_servers()
-    stats = fetch_all_parallel(all_servers, get_remote_stats) if all_servers else []
+    stats = fetch_all_parallel(all_servers, _fetch_server) if all_servers else []
     cache_ages = {s["id"]: get_cache_age(s["id"]) for s in all_servers}
-    return render_template("servers.html", user=session["user"],
-                           role=session["role"],
+    return render_template("servers.html", user=session["user"], role=session["role"],
                            servers=all_servers, stats=stats,
                            cache_ages=cache_ages, active="servers")
 
@@ -148,7 +146,7 @@ def server_detail(server_id):
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
-    data = get_remote_stats(server)
+    data = _fetch_server(server)
     set_cache(server_id, data)
     return render_template("server_detail.html", user=session["user"],
                            role=session["role"], data=data, active="servers")
@@ -158,10 +156,13 @@ def server_detail(server_id):
 @login_required
 def remote_add():
     d = request.get_json()
+    os_type = d.get("os_type", "linux")
+
+    # Para Windows guardamos credenciales en formato compatible
     ok, msg = add_server(
         name=d.get("name", ""),
         host=d.get("host", ""),
-        port=int(d.get("port", 22)),
+        port=int(d.get("port", 22 if os_type == "linux" else 5985)),
         username=d.get("username", ""),
         auth_type=d.get("auth_type", "password"),
         password=d.get("password", ""),
@@ -169,9 +170,24 @@ def remote_add():
     )
     if not ok:
         return jsonify({"ok": False, "message": msg})
+
+    # Agregar os_type al servidor
+    servers = load_servers()
+    for s in servers:
+        if s["host"] == d.get("host") and s["port"] == int(d.get("port", 22)):
+            s["os_type"] = os_type
+            s["use_ssl"] = d.get("use_ssl", False)
+    from modules.remote_ssh import save_servers
+    save_servers(servers)
+
     server = get_server(f"{d['host']}:{d.get('port', 22)}")
     if server:
-        conn_ok, conn_msg = test_connection(server)
+        if os_type == "windows":
+            conn_ok, conn_msg = win_test_connection(server)
+        elif os_type == "switch":
+            conn_ok, conn_msg = switch_test_connection(server)
+        else:
+            conn_ok, conn_msg = test_connection(server)
         return jsonify({"ok": True, "message": f"Servidor agregado — {conn_msg}"})
     return jsonify({"ok": True, "message": msg})
 
@@ -190,17 +206,38 @@ def remote_refresh(server_id):
     server = get_server(server_id)
     if server:
         invalidate(server_id)
-        data = get_remote_stats(server)
+        data = _fetch_server(server)
         set_cache(server_id, data)
     return jsonify({"ok": True})
+
+
+# ── ACTUALIZACIONES ───────────────────────────────────────────────────────────
+@app.route("/updates")
+@admin_required
+def updates():
+    status = check_for_updates()
+    return render_template("updates.html", user=session["user"], role=session["role"],
+                           active="updates", status=status,
+                           update_result=False, update_ok=None,
+                           update_msg=None, update_details=None)
+
+
+@app.route("/updates/apply", methods=["POST"])
+@admin_required
+def updates_apply():
+    ok, msg, details = apply_update()
+    status = check_for_updates()
+    return render_template("updates.html", user=session["user"], role=session["role"],
+                           active="updates", status=status,
+                           update_result=True, update_ok=ok,
+                           update_msg=msg, update_details=details)
 
 
 # ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
 @app.route("/settings")
 @login_required
 def settings():
-    return render_template("settings.html",
-                           user=session["user"], role=session["role"],
+    return render_template("settings.html", user=session["user"], role=session["role"],
                            active="settings", active_tab="password",
                            users_list=get_users() if session["role"] == "admin" else [],
                            app_config=get_app_config(),
@@ -213,18 +250,12 @@ def settings_password():
     current = request.form.get("current_password", "")
     new_pw  = request.form.get("new_password", "")
     confirm = request.form.get("confirm_password", "")
-
-    flash_msg, flash_type = None, None
-
     if new_pw != confirm:
         flash_msg, flash_type = "Las contraseñas no coinciden", "error"
     else:
         ok, msg = change_password(session["user"], current, new_pw)
-        flash_msg = msg
-        flash_type = "ok" if ok else "error"
-
-    return render_template("settings.html",
-                           user=session["user"], role=session["role"],
+        flash_msg, flash_type = msg, "ok" if ok else "error"
+    return render_template("settings.html", user=session["user"], role=session["role"],
                            active="settings", active_tab="password",
                            users_list=get_users() if session["role"] == "admin" else [],
                            app_config=get_app_config(),
@@ -238,18 +269,14 @@ def settings_users_add():
     password = request.form.get("password", "")
     confirm  = request.form.get("confirm_password", "")
     role     = request.form.get("role", "auditor")
-
     if password != confirm:
         flash_msg, flash_type = "Las contraseñas no coinciden", "error"
     else:
         ok, msg = add_user(username, password, role)
         flash_msg, flash_type = msg, "ok" if ok else "error"
-
-    return render_template("settings.html",
-                           user=session["user"], role=session["role"],
+    return render_template("settings.html", user=session["user"], role=session["role"],
                            active="settings", active_tab="users",
-                           users_list=get_users(),
-                           app_config=get_app_config(),
+                           users_list=get_users(), app_config=get_app_config(),
                            flash_msg=flash_msg, flash_type=flash_type)
 
 
@@ -258,33 +285,26 @@ def settings_users_add():
 def settings_users_delete():
     username = request.form.get("username", "")
     ok, msg = remove_user(username, session["user"])
-    flash_type = "ok" if ok else "error"
-    return render_template("settings.html",
-                           user=session["user"], role=session["role"],
+    return render_template("settings.html", user=session["user"], role=session["role"],
                            active="settings", active_tab="users",
-                           users_list=get_users(),
-                           app_config=get_app_config(),
-                           flash_msg=msg, flash_type=flash_type)
+                           users_list=get_users(), app_config=get_app_config(),
+                           flash_msg=msg, flash_type="ok" if ok else "error")
 
 
 @app.route("/settings/users/admin-password", methods=["POST"])
 @admin_required
 def settings_admin_password():
-    target   = request.form.get("target_username", "")
-    new_pw   = request.form.get("new_password", "")
-    confirm  = request.form.get("confirm_password", "")
-
+    target  = request.form.get("target_username", "")
+    new_pw  = request.form.get("new_password", "")
+    confirm = request.form.get("confirm_password", "")
     if new_pw != confirm:
         flash_msg, flash_type = "Las contraseñas no coinciden", "error"
     else:
         ok, msg = admin_change_password(target, new_pw)
         flash_msg, flash_type = msg, "ok" if ok else "error"
-
-    return render_template("settings.html",
-                           user=session["user"], role=session["role"],
+    return render_template("settings.html", user=session["user"], role=session["role"],
                            active="settings", active_tab="users",
-                           users_list=get_users(),
-                           app_config=get_app_config(),
+                           users_list=get_users(), app_config=get_app_config(),
                            flash_msg=flash_msg, flash_type=flash_type)
 
 
@@ -296,13 +316,10 @@ def settings_app():
         app_name=request.form.get("app_name"),
         session_timeout=request.form.get("session_timeout")
     )
-    flash_type = "ok" if ok else "error"
-    return render_template("settings.html",
-                           user=session["user"], role=session["role"],
+    return render_template("settings.html", user=session["user"], role=session["role"],
                            active="settings", active_tab="app",
-                           users_list=get_users(),
-                           app_config=get_app_config(),
-                           flash_msg=msg, flash_type=flash_type)
+                           users_list=get_users(), app_config=get_app_config(),
+                           flash_msg=msg, flash_type="ok" if ok else "error")
 
 
 # ── API ───────────────────────────────────────────────────────────────────────
@@ -315,7 +332,13 @@ def api_stats():
 @app.route("/api/servers")
 @login_required
 def api_servers():
-    return jsonify(fetch_all_parallel(load_servers(), get_remote_stats))
+    return jsonify(fetch_all_parallel(load_servers(), _fetch_server))
+
+
+@app.route("/api/updates/check")
+@admin_required
+def api_updates_check():
+    return jsonify(check_for_updates())
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -323,15 +346,12 @@ if __name__ == "__main__":
     args = parse_args()
     if args.matrix_mode:
         run_matrix_intro(duration=args.matrix_duration)
-
-    cfg = get_app_config()
+    cfg  = get_app_config()
     port = args.port if args.port != 5000 else cfg.get("port", 5000)
-
     print("\n" + "="*60)
     print("  ⬡  ServerShield — Hardening Tool iniciando...")
     print(f"  URL: http://0.0.0.0:{port}")
     if args.matrix_mode:
         print("  Modo: MATRIX MODE ACTIVATED 🟢")
     print("="*60 + "\n")
-
     app.run(host=args.host, port=port, debug=False)

@@ -249,8 +249,8 @@
 
   <!-- Seguridad rápida -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-    <span class="badge {% if s.ufw_active or s.firewalld_active %}badge-ok{% else %}badge-danger{% endif %}">
-      FW {% if s.ufw_active or s.firewalld_active %}ON{% else %}OFF{% endif %}
+    <span class="badge {% if s.ufw_active %}badge-ok{% else %}badge-danger{% endif %}">
+      UFW {% if s.ufw_active %}ON{% else %}OFF{% endif %}
     </span>
     <span class="badge {% if not s.ssh_root_login %}badge-ok{% else %}badge-danger{% endif %}">
       ROOT {% if not s.ssh_root_login %}BLOQ{% else %}ABIERTO{% endif %}
@@ -329,17 +329,24 @@
       </div>
       <div>
         <label class="modal-label">Puerto SSH</label>
-        <input class="modal-input" id="srv-port" placeholder="22" value="22" />
+        <input class="modal-input" id="srv-port" placeholder="22" value="22" id="srv-port-input" />
       </div>
     </div>
 
     <label class="modal-label">Usuario SSH</label>
-    <input class="modal-input" id="srv-user" placeholder="root / ubuntu / admin" />
+    <input class="modal-input" id="srv-user" placeholder="root / ubuntu / admin" id="srv-user-input" />
+
+    <label class="modal-label">Tipo de sistema operativo</label>
+    <select class="modal-select" id="srv-os" onchange="toggleOS()">
+      <option value="linux">🐧 Linux (SSH)</option>
+      <option value="windows">🪟 Windows (WinRM)</option>
+      <option value="switch">🔀 Switch / Router (SSH)</option>
+    </select>
 
     <label class="modal-label">Tipo de autenticación</label>
     <select class="modal-select" id="srv-auth" onchange="toggleAuth()">
       <option value="password">Contraseña</option>
-      <option value="key">Clave SSH (recomendado)</option>
+      <option value="key">Clave SSH (solo Linux)</option>
     </select>
 
     <div id="auth-password">
@@ -372,6 +379,32 @@
 function openModal()  { document.getElementById('modal').classList.add('active'); }
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
 
+function toggleOS() {
+  const os = document.getElementById('srv-os').value;
+  const portInput = document.getElementById('srv-port-input');
+  const authSelect = document.getElementById('srv-auth');
+  const userInput = document.getElementById('srv-user-input');
+
+  if (os === 'windows') {
+    portInput.value = '5985';
+    portInput.placeholder = '5985 (WinRM HTTP)';
+    authSelect.value = 'password';
+    document.getElementById('auth-key').style.display = 'none';
+    authSelect.querySelector('option[value="key"]').disabled = true;
+    userInput.placeholder = 'DOMAIN\\usuario o usuario local';
+  } else if (os === 'switch') {
+    portInput.value = '22';
+    portInput.placeholder = '22 (SSH)';
+    authSelect.querySelector('option[value="key"]').disabled = false;
+    userInput.placeholder = 'admin / cisco / operator';
+  } else {
+    portInput.value = '22';
+    portInput.placeholder = '22';
+    authSelect.querySelector('option[value="key"]').disabled = false;
+    userInput.placeholder = 'root / ubuntu / admin';
+  }
+}
+
 function toggleAuth() {
   const v = document.getElementById('srv-auth').value;
   document.getElementById('auth-password').style.display = v === 'password' ? '' : 'none';
@@ -398,6 +431,7 @@ async function addServer() {
     port:     document.getElementById('srv-port').value.trim() || '22',
     username: document.getElementById('srv-user').value.trim(),
     auth_type: auth,
+    os_type: document.getElementById('srv-os').value,
     password: auth === 'password' ? document.getElementById('srv-password').value : '',
     key_path: auth === 'key'      ? document.getElementById('srv-keypath').value.trim() : '',
   };

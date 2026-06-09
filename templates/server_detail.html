@@ -105,9 +105,16 @@
 <div class="tabs">
   <button class="tab-btn active" onclick="switchTab('general', this)">◉ GENERAL</button>
   <button class="tab-btn" onclick="switchTab('security', this)">⬡ SEGURIDAD</button>
+  {% if data.os_type != 'switch' %}
   <button class="tab-btn" onclick="switchTab('crowdsec', this)">⛊ CROWDSEC</button>
+  {% endif %}
   <button class="tab-btn" onclick="switchTab('users', this)">◎ USUARIOS</button>
-  <button class="tab-btn" onclick="switchTab('ports', this)">⊟ PUERTOS</button>
+  <button class="tab-btn" onclick="switchTab('ports', this)">
+    {% if data.os_type == 'switch' %}⊞ INTERFACES{% else %}⊟ PUERTOS{% endif %}
+  </button>
+  {% if data.os_type == 'switch' %}
+  <button class="tab-btn" onclick="switchTab('vlans', this)">◈ VLANs</button>
+  {% endif %}
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -119,6 +126,10 @@
       <div class="card-title">◉ Información del Sistema</div>
       <table class="table-term">
         <tr><td style="color:rgba(0,255,65,0.4);width:110px;">HOSTNAME</td><td>{{ data.hostname }}</td></tr>
+        {% if data.os_type == 'switch' %}
+        <tr><td style="color:rgba(0,255,65,0.4);">VENDOR</td>
+            <td><span class="badge badge-info">{{ data.vendor|upper }}</span></td></tr>
+        {% endif %}
         <tr><td style="color:rgba(0,255,65,0.4);">SISTEMA</td><td>{{ data.os }}</td></tr>
         <tr><td style="color:rgba(0,255,65,0.4);">KERNEL</td><td>{{ data.kernel }}</td></tr>
         <tr><td style="color:rgba(0,255,65,0.4);">IP</td><td>{{ data.ip }}</td></tr>
@@ -576,6 +587,64 @@
   {% endif %}
 </div>
 
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TAB: VLANs (solo switches) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+{% if data.os_type == 'switch' %}
+<div id="tab-vlans" class="tab-panel">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">◈ VLANs Configuradas</div>
+      {% if data.vlans %}
+      <table class="table-term">
+        <thead><tr><th>ID</th><th>Nombre</th><th>Estado</th></tr></thead>
+        <tbody>
+        {% for v in data.vlans %}
+        <tr>
+          <td style="color:var(--amber);font-family:var(--font-mono);">{{ v.id }}</td>
+          <td>{{ v.name }}</td>
+          <td><span class="badge {% if v.status == 'active' %}badge-ok{% else %}badge-warn{% endif %}">{{ v.status }}</span></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin VLANs detectadas</div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-title">⊟ Interfaces de Red</div>
+      {% if data.interfaces %}
+      <table class="table-term">
+        <thead><tr><th>Interfaz</th><th>Estado</th><th>Velocidad</th><th>VLAN</th></tr></thead>
+        <tbody>
+        {% for i in data.interfaces %}
+        <tr>
+          <td style="font-family:var(--font-mono);font-size:10px;">{{ i.name }}</td>
+          <td><span class="badge {% if i.up %}badge-ok{% else %}badge-info{% endif %}">
+            {% if i.up %}UP{% else %}DOWN{% endif %}
+          </span></td>
+          <td style="font-size:10px;color:rgba(0,255,65,0.6);">{{ i.speed }}</td>
+          <td style="font-size:10px;color:rgba(0,255,65,0.5);">{{ i.vlan }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="color:rgba(0,255,65,0.3);font-size:11px;">Sin interfaces detectadas</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Configuración raw -->
+  <div class="card">
+    <div class="card-title">⊡ Configuración de Seguridad del Switch</div>
+    <pre class="terminal">{{ data.security.ufw_output }}</pre>
+  </div>
+</div>
 {% endif %}
 
 <!-- Volver -->

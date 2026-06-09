@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Actualizaciones{% endblock %}
+
+{% block extra_style %}
+<style>
+.update-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+}
+.update-card.has-update {
+    border-color: rgba(0,255,65,0.5);
+    box-shadow: 0 0 20px rgba(0,255,65,0.06);
+}
+.update-card.up-to-date {
+    border-color: rgba(0,255,65,0.2);
+}
+.version-badge {
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 900;
+    text-shadow: 0 0 15px currentColor;
+    line-height: 1;
+}
+.changelog-item {
+    display: flex; gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(0,255,65,0.06);
+    font-size: 11px; font-family: var(--font-mono);
+}
+.commit-hash {
+    color: var(--amber); font-size: 10px;
+    flex-shrink: 0; width: 60px;
+}
+.btn-update {
+    background: transparent;
+    border: 1px solid var(--green-dim);
+    color: var(--green);
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 3px; padding: 12px 28px;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+}
+.btn-update::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--green); transform: translateX(-101%);
+    transition: transform 0.25s; z-index: 0;
+}
+.btn-update:hover::before { transform: translateX(0); }
+.btn-update:hover { color: #000; }
+.btn-update span { position: relative; z-index: 1; }
+.btn-check {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: rgba(0,255,65,0.6);
+    font-family: var(--font-mono);
+    font-size: 10px; padding: 10px 20px;
+    cursor: pointer; transition: all 0.2s;
+}
+.btn-check:hover { color: var(--green); border-color: var(--green-dim); }
+.spinning { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.result-box {
+    background: #020905;
+    border: 1px solid var(--border);
+    padding: 14px; font-size: 10px;
+    font-family: var(--font-mono);
+    color: rgba(0,255,65,0.7);
+    white-space: pre-wrap;
+    max-height: 200px; overflow-y: auto;
+    margin-top: 12px; display: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">⬆ ACTUALIZACIONES</span>
+  <span class="page-subtitle">Gestión de versiones de ServerShield</span>
+  <span class="timestamp">{{ status.last_checked }}</span>
+</div>
+
+{% if not status.git_available %}
+<div class="alert-box alert-warn">⚠ Git no está instalado — no se pueden verificar actualizaciones</div>
+{% elif status.error %}
+<div class="alert-box alert-warn">⚠ {{ status.error }}</div>
+{% endif %}
+
+<!-- ESTADO DE VERSIÓN -->
+<div class="update-card {% if status.has_updates %}has-update{% else %}up-to-date{% endif %}">
+  <div style="display:flex;align-items:center;gap:24px;margin-bottom:16px;flex-wrap:wrap;">
+
+    <div>
+      <div style="font-size:9px;letter-spacing:3px;color:rgba(0,255,65,0.4);margin-bottom:6px;">VERSIÓN ACTUAL</div>
+      <div class="version-badge" style="color:var(--green);">{{ status.current_version }}</div>
+      <div style="font-size:10px;color:rgba(0,255,65,0.35);margin-top:4px;">commit: {{ status.current_commit }}</div>
+    </div>
+
+    {% if status.has_updates %}
+    <div style="font-size:24px;color:rgba(0,255,65,0.3);">→</div>
+    <div>
+      <div style="font-size:9px;letter-spacing:3px;color:rgba(0,255,65,0.4);margin-bottom:6px;">VERSIÓN DISPONIBLE</div>
+      <div class="version-badge" style="color:var(--amber);">{{ status.remote_version }}</div>
+      <div style="font-size:10px;color:rgba(0,255,65,0.35);margin-top:4px;">commit: {{ status.remote_commit }}</div>
+    </div>
+    {% endif %}
+
+    <div style="margin-left:auto;text-align:right;">
+      {% if status.has_updates %}
+      <span class="badge badge-warn" style="font-size:11px;padding:5px 12px;">
+        ⬆ {{ status.commits_behind }} commit(s) disponibles
+      </span>
+      {% else %}
+      <span class="badge badge-ok" style="font-size:11px;padding:5px 12px;">
+        ✓ Al día
+      </span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if status.repo_url %}
+  <div style="font-size:10px;color:rgba(0,255,65,0.3);margin-bottom:14px;">
+    Repositorio: <a href="{{ status.repo_url }}" target="_blank"
+                   style="color:rgba(0,255,65,0.5);text-decoration:none;">{{ status.repo_url }}</a>
+  </div>
+  {% endif %}
+
+  <!-- CHANGELOG -->
+  {% if status.changelog %}
+  <div class="card-title" style="margin-bottom:10px;">◈ Cambios disponibles</div>
+  {% for item in status.changelog %}
+  <div class="changelog-item">
+    <span class="commit-hash">{{ item[:7] }}</span>
+    <span style="color:rgba(0,255,65,0.8);">{{ item[8:] if item|length > 8 else item }}</span>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- ACCIONES -->
+  <div style="display:flex;gap:12px;margin-top:20px;align-items:center;flex-wrap:wrap;">
+
+    {% if status.has_updates %}
+    <form method="POST" action="/updates/apply" id="update-form">
+      <button class="btn-update" type="submit" id="btn-apply"
+              onclick="return confirmUpdate()">
+        <span>⬆ APLICAR ACTUALIZACIÓN</span>
+      </button>
+    </form>
+    {% endif %}
+
+    <form method="GET" action="/updates">
+      <button class="btn-check" type="submit" id="btn-check">
+        <span id="check-icon">⟳</span> Verificar ahora
+      </button>
+    </form>
+
+    {% if not status.has_updates and status.git_available and not status.error %}
+    <span style="font-size:11px;color:rgba(0,255,65,0.4);">
+      ✓ ServerShield está actualizado
+    </span>
+    {% endif %}
+  </div>
+</div>
+
+{% if update_result %}
+<!-- RESULTADO DE ACTUALIZACIÓN -->
+<div class="card">
+  <div class="card-title">
+    {% if update_ok %}✓ Actualización aplicada{% else %}✕ Error en la actualización{% endif %}
+  </div>
+  <div class="alert-box {% if update_ok %}alert-ok{% else %}alert-danger{% endif %}">
+    {{ update_msg }}
+  </div>
+  {% if update_ok %}
+  <div class="alert-box alert-warn" style="margin-top:8px;">
+    ⚠ <strong>Reiniciá la app</strong> para cargar los nuevos cambios:
+    <code style="font-family:var(--font-mono);color:var(--green);">
+      sudo systemctl restart servershield
+    </code>
+    — o bien <code style="font-family:var(--font-mono);color:var(--green);">Ctrl+C</code> y relanzar manualmente.
+  </div>
+  {% endif %}
+  {% if update_details %}
+  <pre class="terminal" style="display:block;margin-top:10px;">{{ update_details }}</pre>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- INFO ADICIONAL -->
+<div class="grid-2">
+  <div class="card">
+    <div class="card-title">◈ Información del repositorio</div>
+    <table class="table-term">
+      <tr><td style="color:rgba(0,255,65,0.4);width:140px;">Versión actual</td><td>{{ status.current_version }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">Commit local</td><td style="font-family:var(--font-mono);">{{ status.current_commit }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">Commit remoto</td><td style="font-family:var(--font-mono);">{{ status.remote_commit or 'N/A' }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">Última verificación</td><td>{{ status.last_checked }}</td></tr>
+      <tr><td style="color:rgba(0,255,65,0.4);">Repositorio</td>
+          <td style="font-size:10px;">
+            <a href="{{ status.repo_url }}" target="_blank"
+               style="color:rgba(0,255,65,0.6);text-decoration:none;">
+              {{ status.repo_url or 'N/A' }}
+            </a>
+          </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚠ Antes de actualizar</div>
+    <div class="check-row">
+      <span class="check-icon" style="color:var(--amber);">→</span>
+      <span>La app continuará corriendo durante la actualización</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon" style="color:var(--amber);">→</span>
+      <span>Reiniciá la app manualmente después para cargar cambios</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon" style="color:var(--amber);">→</span>
+      <span>Si usás systemd: <code style="color:var(--green);font-family:var(--font-mono);">sudo systemctl restart servershield</code></span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon" style="color:var(--green);">✓</span>
+      <span>El <code style="color:var(--green);font-family:var(--font-mono);">config.json</code> y <code style="color:var(--green);font-family:var(--font-mono);">servers.json</code> no se modifican</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon" style="color:var(--green);">✓</span>
+      <span>Las dependencias nuevas se instalan automáticamente</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmUpdate() {
+  return confirm(
+    '¿Aplicar la actualización ahora?\n\n' +
+    'La app seguirá corriendo pero necesitarás reiniciarla\n' +
+    'para cargar los cambios.\n\n' +
+    '¿Continuar?'
+  );
+}
+</script>
+{% endblock %}
