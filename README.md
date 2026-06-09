@@ -10,7 +10,7 @@
 ![Version](https://img.shields.io/badge/Version-2.4.0-00ff41?style=for-the-badge)
 
 **Herramienta web de hardening y monitoreo de seguridad para infraestructura híbrida.**
-Linux · Windows · Switches · Multi-servidor vía SSH/WinRM. Easter egg incluido. 🟢
+Linux · Windows · Switches · Firewalls · Multi-dispositivo vía SSH/WinRM. Easter egg incluido. 🟢
 
 </div>
 
@@ -38,12 +38,20 @@ Linux · Windows · Switches · Multi-servidor vía SSH/WinRM. Easter egg inclui
 | **Usuarios / Root** | Sudo, UID 0, /etc/shadow, grupos críticos, lastlog |
 | **Puertos / Red** | Clasificación de riesgo, exposición pública, reglas firewall |
 
-### 🌐 Análisis Remoto Multi-Dispositivo
+### 🌐 Servidores Remotos
 | Tipo | Protocolo | Info recopilada |
 |------|-----------|----------------|
 | 🐧 **Linux** | SSH | CPU, RAM, disco, CVE, CrowdSec, usuarios, puertos, hardening completo |
 | 🪟 **Windows** | WinRM | CPU, RAM, disco, Defender, Firewall, UAC, SMBv1, RDP, Windows Update |
-| 🔀 **Switch/Router** | SSH | VLANs, interfaces, SSH v2, Telnet, SNMP, ACLs, Port Security, STP |
+
+### 🔀 Switches / Red
+| Vendor | Protocolo | Capacidades |
+|--------|-----------|-------------|
+| 🔵 **Cisco** IOS/IOS-XE | SSH | VLANs, interfaces, ACLs, port security, STP |
+| 🟢 **HP / Aruba** | SSH | VLANs, interfaces, usuarios, ACLs |
+| 🟡 **MikroTik** RouterOS | SSH | Interfaces, VLANs, usuarios, firewall rules |
+| 🔴 **Juniper** JunOS | SSH | Interfaces, VLANs, firewall, usuarios |
+| 🟠 **Fortinet** FortiGate/FortiSwitch | SSH | Interfaces, políticas, usuarios admin, NTP, logging |
 
 **Vendors de switch soportados:** Cisco IOS/IOS-XE · HP/Aruba · MikroTik · Juniper
 
