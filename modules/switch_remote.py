@@ -60,6 +60,8 @@ def _detect_vendor(banner, version_output):
         return "mikrotik"
     if "juniper" in combined or "junos" in combined:
         return "juniper"
+    if "fortigate" in combined or "fortiswitch" in combined or "fortios" in combined or "forti" in combined:
+        return "fortinet"
     return "generic"
 
 
@@ -302,6 +304,25 @@ def _get_commands(vendor):
             "port_sec":   "show ethernet-switching interface",
             "spanning":   "show spanning-tree bridge",
         }
+    elif vendor == "fortinet":
+        return {
+            "hostname":   "get system status",
+            "cpu":        "get system performance status",
+            "memory":     "get system performance status",
+            "vlans":      "show system interface",
+            "interfaces": "get system interface physical",
+            "users":      "show system admin",
+            "uptime":     "get system status",
+            "ssh":        "show system global | grep -i ssh",
+            "telnet":     "show system global | grep -i telnet",
+            "snmp":       "show system snmp sysinfo",
+            "aaa":        "show system admin",
+            "acl":        "show firewall policy | head -30",
+            "ntp":        "show system ntp",
+            "logging":    "show log setting",
+            "port_sec":   "show system interface",
+            "spanning":   "get switch stp settings",
+        }
     else:  # generic
         return {
             "hostname":   "hostname",
@@ -337,10 +358,21 @@ def _parse_hostname(out, vendor, ver_out):
     elif vendor == "juniper":
         m = re.search(r"Hostname:\s+(\S+)", out)
         if m: return m.group(1)
+    elif vendor == "fortinet":
+        m = re.search(r"Hostname:\s+(\S+)", out)
+        if m: return m.group(1)
+        m = re.search(r"hostname\s*:\s*(\S+)", out, re.IGNORECASE)
+        if m: return m.group(1)
     return out.split()[-1] if out.split() else "switch"
 
 
 def _parse_os(ver_out, vendor):
+    if vendor == "fortinet":
+        m = re.search(r"Version:\s+(FortiGate|FortiSwitch)[\w\-]+\s+v([\d\.]+)", ver_out)
+        if m: return f"{m.group(1)} v{m.group(2)}"
+        m = re.search(r"(FortiGate|FortiSwitch)[\w\-]+", ver_out)
+        if m: return m.group(0)
+        return "Fortinet FortiOS"
     labels = {
         "cisco":    r"(Cisco IOS[\w\s\-XE]*),?\s+Version\s+([\d\.\w\(\)]+)",
         "hp_aruba": r"(HP|Aruba|ProCurve)[\w\s]+",
@@ -365,6 +397,9 @@ def _parse_firmware(ver_out, vendor):
     elif vendor == "juniper":
         m = re.search(r"JUNOS\s+([\d\w\.\-]+)", ver_out)
         if m: return m.group(1)
+    elif vendor == "fortinet":
+        m = re.search(r"v(\d+\.\d+\.\d+)", ver_out)
+        if m: return m.group(1)
     return "N/A"
 
 
@@ -379,6 +414,9 @@ def _parse_uptime(ver_out, vendor, uptime_out):
     elif vendor == "juniper":
         m = re.search(r"System booted:\s+.+?\((.+?)\)", combined)
         if m: return m.group(1)
+    elif vendor == "fortinet":
+        m = re.search(r"Uptime:\s+(.+?)(?:\n|$)", combined, re.IGNORECASE)
+        if m: return m.group(1).strip()
     return "N/A"
 
 
@@ -391,6 +429,11 @@ def _parse_cpu(cpu_out, vendor):
         if m: return m.group(1) + "%"
     elif vendor == "juniper":
         m = re.search(r"CPU utilization\s+(\d+)\s+percent", cpu_out)
+        if m: return m.group(1) + "%"
+    elif vendor == "fortinet":
+        m = re.search(r"CPU states:\s+(\d+)%", cpu_out)
+        if m: return m.group(1) + "%"
+        m = re.search(r"CPU:\s+(\d+)%", cpu_out)
         if m: return m.group(1) + "%"
     return "N/A"
 
@@ -431,6 +474,11 @@ def _parse_vlans(vlan_out, vendor):
             m = re.match(r"(\S+)\s+(\d+)\s+\S+\s+(Active|Inactive)", line)
             if m:
                 vlans.append({"id": m.group(2), "name": m.group(1), "status": m.group(3).lower()})
+    elif vendor == "fortinet":
+        for line in vlan_out.splitlines():
+            m = re.search(r'edit\s+"([^"]+)"', line)
+            if m:
+                vlans.append({"id": "N/A", "name": m.group(1), "status": "active"})
     else:
         for line in vlan_out.splitlines():
             m = re.search(r"(\d+)\s+(\S+)", line)
@@ -463,6 +511,19 @@ def _parse_interfaces(iface_out, vendor):
                     "duplex": "auto", "speed": "auto", "vlan": "?",
                     "up": "R" in m.group(2)
                 })
+    elif vendor == "fortinet":
+        current = None
+        for line in iface_out.splitlines():
+            m = re.match(r"==\s+\[(.+?)\]", line)
+            if m:
+                current = m.group(1).strip()
+            if current and "status:" in line.lower():
+                up = "up" in line.lower()
+                interfaces.append({
+                    "name": current, "status": "up" if up else "down",
+                    "duplex": "auto", "speed": "auto", "vlan": "?", "up": up
+                })
+                current = None
     else:
         for line in iface_out.splitlines():
             if re.search(r"(up|down|connected|notconnect)", line, re.IGNORECASE):
@@ -494,6 +555,12 @@ def _parse_users(user_out, vendor):
     elif vendor == "juniper":
         for line in user_out.splitlines():
             m = re.search(r"user\s+(\S+)\s+\{", line)
+            if m:
+                users.append({"username": m.group(1), "privilege": "admin",
+                              "type": "local"})
+    elif vendor == "fortinet":
+        for line in user_out.splitlines():
+            m = re.search(r'edit\s+"([^"]+)"', line)
             if m:
                 users.append({"username": m.group(1), "privilege": "admin",
                               "type": "local"})

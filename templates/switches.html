@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% block title %}Switches / Red{% endblock %}
+
+{% block extra_style %}
+<style>
+.switch-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    padding: 18px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+.switch-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+}
+.switch-card.online::before  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.switch-card.offline::before { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+.switch-card:hover { border-color: var(--border-bright); background: rgba(0,255,65,0.03); }
+
+.vendor-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; padding: 3px 10px;
+    border: 1px solid; letter-spacing: 1px; font-weight: bold;
+}
+.vendor-cisco    { border-color: rgba(0,150,255,0.4); color: #4af; }
+.vendor-hp_aruba { border-color: rgba(0,255,65,0.3);  color: var(--green-dim); }
+.vendor-mikrotik { border-color: rgba(255,179,0,0.4); color: var(--amber); }
+.vendor-juniper  { border-color: rgba(255,51,51,0.4); color: var(--red); }
+.vendor-fortinet { border-color: rgba(255,100,0,0.4); color: #f60; }
+.vendor-generic  { border-color: var(--border);       color: rgba(0,255,65,0.5); }
+
+.score-ring {
+    width: 54px; height: 54px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 13px; font-weight: 900;
+    border: 2px solid; flex-shrink: 0;
+}
+.score-ok     { border-color: var(--green); color: var(--green); background: rgba(0,255,65,0.07); }
+.score-warn   { border-color: var(--amber); color: var(--amber); background: rgba(255,179,0,0.07); }
+.score-danger { border-color: var(--red);   color: var(--red);   background: rgba(255,51,51,0.07); }
+
+.mini-bar { height: 4px; background: rgba(0,255,65,0.1); border-radius: 2px; margin-top: 3px; overflow: hidden; }
+.mini-fill { height: 100%; border-radius: 2px; }
+.fill-green { background: var(--green); }
+.fill-amber { background: var(--amber); }
+.fill-red   { background: var(--red); }
+
+.modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 1000;
+    align-items: center; justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+    background: var(--panel); border: 1px solid var(--border-bright);
+    padding: 28px; width: min(500px, 90vw);
+    box-shadow: 0 0 40px rgba(0,255,65,0.1);
+}
+.modal-title {
+    font-family: var(--font-display); font-size: 13px; font-weight: 700;
+    color: var(--green); letter-spacing: 2px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+}
+.modal-input {
+    width: 100%; background: rgba(0,255,65,0.03);
+    border: 1px solid var(--border); color: var(--green);
+    font-family: var(--font-mono); font-size: 12px;
+    padding: 9px 12px; outline: none; margin-bottom: 10px;
+}
+.modal-input:focus { border-color: var(--green-dim); }
+.modal-label {
+    font-size: 9px; letter-spacing: 2px; color: rgba(0,255,65,0.5);
+    text-transform: uppercase; margin-bottom: 4px; display: block;
+}
+.modal-select {
+    width: 100%; background: var(--panel); border: 1px solid var(--border);
+    color: var(--green); font-family: var(--font-mono); font-size: 12px;
+    padding: 9px 12px; margin-bottom: 10px; outline: none;
+}
+.btn-primary {
+    background: transparent; border: 1px solid var(--green-dim);
+    color: var(--green); font-family: var(--font-display);
+    font-size: 10px; font-weight: 700; letter-spacing: 3px;
+    padding: 10px 20px; cursor: pointer; transition: all 0.2s;
+}
+.btn-primary:hover { background: var(--green); color: #000; }
+.btn-danger {
+    background: transparent; border: 1px solid rgba(255,51,51,0.4);
+    color: var(--red); font-family: var(--font-mono);
+    font-size: 10px; padding: 6px 12px; cursor: pointer; transition: all 0.2s;
+}
+.btn-danger:hover { background: rgba(255,51,51,0.1); }
+.btn-secondary {
+    background: transparent; border: 1px solid var(--border);
+    color: rgba(0,255,65,0.5); font-family: var(--font-mono);
+    font-size: 10px; padding: 10px 16px; cursor: pointer; margin-left: 8px;
+}
+.toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--panel); border: 1px solid var(--green-dim);
+    color: var(--green); font-size: 11px; padding: 12px 18px;
+    z-index: 2000; display: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <span class="page-title">🔀 SWITCHES / RED</span>
+  <span class="page-subtitle">Hardening de equipos de red</span>
+  <button class="btn-primary" style="margin-left:auto;" onclick="openModal()">
+    ＋ AGREGAR SWITCH
+  </button>
+</div>
+
+<!-- RESUMEN GLOBAL -->
+{% if switches %}
+<div class="grid-4" style="margin-bottom:20px;">
+  <div class="stat-box">
+    <div class="stat-value">{{ switches|length }}</div>
+    <div class="stat-label">Total Dispositivos</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--green);">
+      {{ stats|selectattr('connected')|list|length }}
+    </div>
+    <div class="stat-label">Online</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--red);">
+      {{ stats|rejectattr('connected')|list|length }}
+    </div>
+    <div class="stat-label">Offline</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-value" style="color:var(--amber);">
+      {% set telnet_count = namespace(n=0) %}
+      {% for s in stats %}
+        {% if s.connected and s.security is defined and s.security.telnet_enabled %}
+          {% set telnet_count.n = telnet_count.n + 1 %}
+        {% endif %}
+      {% endfor %}
+      {{ telnet_count.n }}
+    </div>
+    <div class="stat-label">Telnet Activo ⚠</div>
+  </div>
+</div>
+
+<!-- GRILLA DE SWITCHES -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
+{% for s in stats %}
+{% set status_class = 'online' if s.connected else 'offline' %}
+<div class="switch-card {{ status_class }}">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+    {% if s.connected %}
+      {% set sc = s.security_score %}
+      <div class="score-ring {% if sc >= 80 %}score-ok{% elif sc >= 50 %}score-warn{% else %}score-danger{% endif %}">
+        {{ sc }}%
+      </div>
+    {% else %}
+      <div class="score-ring score-danger">ERR</div>
+    {% endif %}
+
+    <div style="flex:1;min-width:0;">
+      <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--green);letter-spacing:1px;">
+        {{ s.server_name }}
+      </div>
+      <div style="font-size:10px;color:rgba(0,255,65,0.4);font-family:var(--font-mono);">
+        {{ s.host }}:{{ s.port }}
+      </div>
+      {% if s.connected %}
+      <div style="font-size:9px;color:rgba(0,255,65,0.35);">{{ s.hostname }} · {{ s.os }}</div>
+      {% endif %}
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+      <!-- Vendor badge -->
+      {% if s.connected %}
+      <span class="vendor-badge vendor-{{ s.vendor }}">
+        {% if s.vendor == 'cisco' %}🔵 CISCO
+        {% elif s.vendor == 'hp_aruba' %}🟢 HP/ARUBA
+        {% elif s.vendor == 'mikrotik' %}🟡 MIKROTIK
+        {% elif s.vendor == 'juniper' %}🔴 JUNIPER
+        {% elif s.vendor == 'fortinet' %}🟠 FORTINET
+        {% else %}⚪ GENERIC{% endif %}
+      </span>
+      {% endif %}
+      <span class="badge {% if s.connected %}badge-ok{% else %}badge-danger{% endif %}">
+        {% if s.connected %}● ONLINE{% else %}○ OFFLINE{% endif %}
+      </span>
+    </div>
+  </div>
+
+  {% if s.connected %}
+
+  <!-- Métricas -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+    <div>
+      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">CPU</div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);">{{ s.cpu_usage }}</div>
+    </div>
+    <div>
+      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">UPTIME</div>
+      <div style="font-size:10px;color:var(--green);">{{ s.uptime[:15] if s.uptime != 'N/A' else 'N/A' }}</div>
+    </div>
+    <div>
+      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">INTERFACES</div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);">
+        {{ s.interfaces|selectattr('up')|list|length }}/{{ s.interfaces|length }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Badges de seguridad -->
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+    {% if s.security is defined %}
+    <span class="badge {% if not s.security.telnet_enabled %}badge-ok{% else %}badge-danger{% endif %}">
+      TELNET {% if not s.security.telnet_enabled %}OFF{% else %}ON⚠{% endif %}
+    </span>
+    <span class="badge {% if s.security.ssh_v2_only %}badge-ok{% else %}badge-warn{% endif %}">
+      SSH {% if s.security.ssh_v2_only %}v2✓{% else %}!v2{% endif %}
+    </span>
+    <span class="badge {% if not s.security.snmp_community_public %}badge-ok{% else %}badge-danger{% endif %}">
+      SNMP {% if not s.security.snmp_community_public %}OK{% else %}⚠{% endif %}
+    </span>
+    <span class="badge {% if s.security.acl_configured %}badge-ok{% else %}badge-warn{% endif %}">
+      ACL {% if s.security.acl_configured %}✓{% else %}—{% endif %}
+    </span>
+    {% endif %}
+    {% if s.vlans %}
+    <span class="badge badge-info">{{ s.vlans|length }} VLANs</span>
+    {% endif %}
+  </div>
+
+  {% else %}
+  <div class="alert-box alert-danger" style="margin:0;">
+    ✕ {{ s.error or 'Sin conexión' }}
+  </div>
+  {% endif %}
+
+  <!-- Acciones -->
+  <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+    <a href="/switch/{{ s.server_id }}" class="btn-primary"
+       style="font-size:9px;padding:6px 12px;text-decoration:none;">▶ DETALLE</a>
+    <button class="btn-primary" style="font-size:9px;padding:6px 10px;"
+            onclick="refreshSwitch('{{ s.server_id }}', this)">⟳</button>
+    <button class="btn-danger" style="margin-left:auto;"
+            onclick="removeSwitch('{{ s.server_id }}', '{{ s.server_name }}')">✕</button>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<!-- Estado vacío -->
+<div style="text-align:center;padding:60px 20px;border:1px dashed var(--border);">
+  <div style="font-size:48px;margin-bottom:16px;opacity:0.3;">🔀</div>
+  <div style="font-family:var(--font-display);font-size:14px;color:rgba(0,255,65,0.5);margin-bottom:8px;">
+    SIN SWITCHES REGISTRADOS
+  </div>
+  <div style="font-size:11px;color:rgba(0,255,65,0.3);margin-bottom:20px;">
+    Soporta: Cisco · HP/Aruba · MikroTik · Juniper · Fortinet
+  </div>
+  <button class="btn-primary" onclick="openModal()">＋ AGREGAR PRIMER SWITCH</button>
+</div>
+{% endif %}
+
+<!-- MODAL AGREGAR SWITCH -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">🔀 AGREGAR SWITCH / EQUIPO DE RED</div>
+
+    <label class="modal-label">Nombre del dispositivo</label>
+    <input class="modal-input" id="sw-name" placeholder="ej: SW-Core-01, FG-Perimetral"/>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;">
+      <div>
+        <label class="modal-label">Host / IP</label>
+        <input class="modal-input" id="sw-host" placeholder="192.168.1.1"/>
+      </div>
+      <div>
+        <label class="modal-label">Puerto SSH</label>
+        <input class="modal-input" id="sw-port" placeholder="22" value="22"/>
+      </div>
+    </div>
+
+    <label class="modal-label">Vendor / Fabricante</label>
+    <select class="modal-select" id="sw-vendor" onchange="updateVendorHint()">
+      <option value="auto">🔍 Auto-detectar</option>
+      <option value="cisco">🔵 Cisco IOS / IOS-XE</option>
+      <option value="hp_aruba">🟢 HP / Aruba / ProCurve</option>
+      <option value="mikrotik">🟡 MikroTik RouterOS</option>
+      <option value="juniper">🔴 Juniper JunOS</option>
+      <option value="fortinet">🟠 Fortinet (FortiGate / FortiSwitch)</option>
+    </select>
+
+    <div id="vendor-hint" style="font-size:9px;color:rgba(0,255,65,0.35);margin:-6px 0 10px;"></div>
+
+    <label class="modal-label">Usuario</label>
+    <input class="modal-input" id="sw-user" placeholder="admin / cisco / operator"/>
+
+    <label class="modal-label">Contraseña</label>
+    <input class="modal-input" id="sw-password" type="password" placeholder="••••••••"/>
+
+    <div id="modal-error" class="alert-box alert-danger" style="display:none;margin-bottom:10px;"></div>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+      <button class="btn-primary" onclick="addSwitch()">
+        <span id="btn-text">✓ AGREGAR Y PROBAR</span>
+      </button>
+      <button class="btn-secondary" onclick="closeModal()">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const vendorHints = {
+  'auto':     'El vendor se detecta automáticamente al conectar',
+  'cisco':    'Usuario: admin / enable — Asegurate de tener SSH v2 habilitado',
+  'hp_aruba': 'Usuario: admin / manager — Habilitar SSH: ip ssh',
+  'mikrotik': 'Usuario: admin — SSH habilitado por defecto en RouterOS',
+  'juniper':  'Usuario: root / admin — set system services ssh',
+  'fortinet': 'Usuario: admin — SSH habilitado en System > Admin > Admin Settings'
+};
+
+function updateVendorHint() {
+  const v = document.getElementById('sw-vendor').value;
+  document.getElementById('vendor-hint').textContent = vendorHints[v] || '';
+}
+
+function openModal()  { document.getElementById('modal').classList.add('active'); }
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+function showToast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  t.style.borderColor = ok ? 'var(--green-dim)' : 'rgba(255,51,51,0.4)';
+  t.style.color = ok ? 'var(--green)' : 'var(--red)';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+
+async function addSwitch() {
+  const btn = document.getElementById('btn-text');
+  const err = document.getElementById('modal-error');
+
+  const body = {
+    name:      document.getElementById('sw-name').value.trim(),
+    host:      document.getElementById('sw-host').value.trim(),
+    port:      document.getElementById('sw-port').value.trim() || '22',
+    username:  document.getElementById('sw-user').value.trim(),
+    password:  document.getElementById('sw-password').value,
+    auth_type: 'password',
+    os_type:   'switch',
+    vendor:    document.getElementById('sw-vendor').value,
+  };
+
+  if (!body.name || !body.host || !body.username) {
+    err.textContent = '⚠ Completá nombre, host y usuario';
+    err.style.display = 'flex';
+    return;
+  }
+
+  btn.textContent = '⟳ Probando conexión...';
+  err.style.display = 'none';
+
+  try {
+    const r = await fetch('/switch/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (data.ok) {
+      closeModal();
+      showToast('✓ ' + data.message);
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      err.textContent = '✕ ' + data.message;
+      err.style.display = 'flex';
+    }
+  } catch(e) {
+    err.textContent = '✕ Error de comunicación';
+    err.style.display = 'flex';
+  } finally {
+    btn.textContent = '✓ AGREGAR Y PROBAR';
+  }
+}
+
+async function removeSwitch(id, name) {
+  if (!confirm(`¿Eliminar "${name}"?`)) return;
+  await fetch('/switch/remove/' + encodeURIComponent(id), { method: 'POST' });
+  showToast('Dispositivo eliminado');
+  setTimeout(() => location.reload(), 800);
+}
+
+async function refreshSwitch(id, btn) {
+  btn.textContent = '⟳';
+  await fetch('/switch/refresh/' + encodeURIComponent(id));
+  location.reload();
+}
+</script>
+{% endblock %}

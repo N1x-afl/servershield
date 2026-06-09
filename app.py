@@ -132,7 +132,7 @@ def ports():
 @app.route("/servers")
 @login_required
 def servers():
-    all_servers = load_servers()
+    all_servers = [s for s in load_servers() if s.get("os_type") != "switch"]
     stats = fetch_all_parallel(all_servers, _fetch_server) if all_servers else []
     cache_ages = {s["id"]: get_cache_age(s["id"]) for s in all_servers}
     return render_template("servers.html", user=session["user"], role=session["role"],
@@ -210,6 +210,72 @@ def remote_refresh(server_id):
         set_cache(server_id, data)
     return jsonify({"ok": True})
 
+
+# ── SWITCHES / RED ───────────────────────────────────────────────────────────
+@app.route("/switches")
+@login_required
+def switches():
+    all_switches = [s for s in load_servers() if s.get("os_type") == "switch"]
+    stats = fetch_all_parallel(all_switches, _fetch_server) if all_switches else []
+    return render_template("switches.html", user=session["user"], role=session["role"],
+                           switches=all_switches, stats=stats, active="switches")
+
+@app.route("/switch/<path:server_id>")
+@login_required
+def switch_detail(server_id):
+    server = get_server(server_id)
+    if not server:
+        return redirect(url_for("switches"))
+    data = _fetch_server(server)
+    set_cache(server_id, data)
+    return render_template("server_detail.html", user=session["user"],
+                           role=session["role"], data=data, active="switches")
+
+@app.route("/switch/add", methods=["POST"])
+@login_required
+def switch_add():
+    d = request.get_json()
+    ok, msg = add_server(
+        name=d.get("name", ""),
+        host=d.get("host", ""),
+        port=int(d.get("port", 22)),
+        username=d.get("username", ""),
+        auth_type="password",
+        password=d.get("password", ""),
+        key_path=""
+    )
+    if not ok:
+        return jsonify({"ok": False, "message": msg})
+    # Guardar os_type y vendor
+    servers = load_servers()
+    for s in servers:
+        if s["host"] == d.get("host") and s["port"] == int(d.get("port", 22)):
+            s["os_type"] = "switch"
+            s["vendor"]  = d.get("vendor", "auto")
+    from modules.remote_ssh import save_servers
+    save_servers(servers)
+    server = get_server(f"{d['host']}:{d.get('port', 22)}")
+    if server:
+        ok_conn, conn_msg = switch_test_connection(server)
+        return jsonify({"ok": True, "message": f"Switch agregado — {conn_msg}"})
+    return jsonify({"ok": True, "message": msg})
+
+@app.route("/switch/remove/<path:server_id>", methods=["POST"])
+@login_required
+def switch_remove(server_id):
+    remove_server(server_id)
+    invalidate(server_id)
+    return jsonify({"ok": True})
+
+@app.route("/switch/refresh/<path:server_id>")
+@login_required
+def switch_refresh(server_id):
+    server = get_server(server_id)
+    if server:
+        invalidate(server_id)
+        data = _fetch_server(server)
+        set_cache(server_id, data)
+    return jsonify({"ok": True})
 
 # ── ACTUALIZACIONES ───────────────────────────────────────────────────────────
 @app.route("/updates")
