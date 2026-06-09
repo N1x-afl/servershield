@@ -4,12 +4,13 @@
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-00aa2e?style=for-the-badge&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.x-00aa2e?style=for-the-badge&logo=flask&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-Zorin%20%7C%20Ubuntu%20%7C%20Debian-00aa2e?style=for-the-badge&logo=linux&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-Zorin%20%7C%20Ubuntu%20%7C%20Debian%20%7C%20Fedora-00aa2e?style=for-the-badge&logo=linux&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-WinRM-0078d4?style=for-the-badge&logo=windows&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-00aa2e?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-Active-00ff41?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-2.4.0-00ff41?style=for-the-badge)
 
-**Herramienta web de hardening y monitoreo de seguridad para servidores Linux.**  
-Interfaz estilo terminal. Multi-servidor vía SSH. Easter egg incluido. 🟢
+**Herramienta web de hardening y monitoreo de seguridad para infraestructura híbrida.**
+Linux · Windows · Switches · Multi-servidor vía SSH/WinRM. Easter egg incluido. 🟢
 
 </div>
 
@@ -17,23 +18,16 @@ Interfaz estilo terminal. Multi-servidor vía SSH. Easter egg incluido. 🟢
 
 ## 📸 Vista previa
 
-### 🔐 Login
 ![Login](docs/login.png)
-
-### 📊 Dashboard
 ![Dashboard](docs/dashboard.png)
-
-### ⛊ CrowdSec IDS
-![CrowdSec](docs/crowdsec.png)
-
-### 🌐 Servidores Remotos
 ![Servers](docs/servers.png)
+![CrowdSec](docs/crowdsec.png)
 
 ---
 
 ## ✨ Características
 
-### 🖥️ Análisis Local
+### 🖥️ Análisis Local (servidor donde corre la app)
 | Módulo | Descripción |
 |--------|-------------|
 | **Dashboard** | CPU, RAM, disco, uptime, procesos en tiempo real |
@@ -44,17 +38,26 @@ Interfaz estilo terminal. Multi-servidor vía SSH. Easter egg incluido. 🟢
 | **Usuarios / Root** | Sudo, UID 0, /etc/shadow, grupos críticos, lastlog |
 | **Puertos / Red** | Clasificación de riesgo, exposición pública, reglas firewall |
 
-### 🌐 Análisis Multi-Servidor (SSH)
-- Conectá y monitoreá **múltiples servidores remotos** desde una sola interfaz
-- Autenticación por **contraseña o clave SSH**
-- Dashboard unificado con **security score** por servidor
-- Vista detallada: métricas, puertos, servicios, últimos logins
-- Detección automática de UFW, fail2ban, CrowdSec en servidores remotos
+### 🌐 Análisis Remoto Multi-Dispositivo
+| Tipo | Protocolo | Info recopilada |
+|------|-----------|----------------|
+| 🐧 **Linux** | SSH | CPU, RAM, disco, CVE, CrowdSec, usuarios, puertos, hardening completo |
+| 🪟 **Windows** | WinRM | CPU, RAM, disco, Defender, Firewall, UAC, SMBv1, RDP, Windows Update |
+| 🔀 **Switch/Router** | SSH | VLANs, interfaces, SSH v2, Telnet, SNMP, ACLs, Port Security, STP |
+
+**Vendors de switch soportados:** Cisco IOS/IOS-XE · HP/Aruba · MikroTik · Juniper
+
+### ⚙️ Gestión y Configuración
+- **Panel de usuarios** — agregar, eliminar, cambiar contraseñas (hash bcrypt)
+- **Roles** — Admin (acceso total) y Auditor (solo visualización)
+- **Panel de actualizaciones** — verificar y aplicar `git pull` desde la UI
+- **Configuración de puerto** y parámetros de la app desde la interfaz
 
 ### 🎨 Extras
 - Login de **dos columnas** con ASCII art del servidor
 - **Easter egg Matrix** (`--matrix-mode`) con lluvia de katakana y boot sequence
 - Interfaz 100% estilo terminal — verde fosforescente / negro
+- Caché inteligente + consultas en paralelo para servidores remotos
 - Corre como **servicio systemd** con arranque automático
 
 ---
@@ -63,7 +66,7 @@ Interfaz estilo terminal. Multi-servidor vía SSH. Easter egg incluido. 🟢
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/TU_USUARIO/servershield.git
+git clone https://github.com/N1x-afl/servershield.git
 cd servershield
 
 # 2. Crear entorno virtual
@@ -73,10 +76,7 @@ source venv/bin/activate
 # 3. Instalar dependencias
 pip install -r requirements.txt
 
-# 4. Ejecutar (modo normal)
-python3 app.py
-
-# 5. Ejecutar con privilegios completos (recomendado)
+# 4. Ejecutar con privilegios completos (recomendado)
 sudo venv/bin/python3 app.py
 ```
 
@@ -91,28 +91,16 @@ Abrí el navegador en **http://localhost:5000**
 | `admin` | `Adm1n@Shield2024` | Administrador — acceso total |
 | `auditor` | `Aud1t@2024` | Solo visualización |
 
-> ⚠️ **Importante:** Cambiá las contraseñas antes de usar en producción.  
-> Editá el diccionario `USERS` en `app.py`:
-
-```python
-USERS = {
-    "tu_usuario": "TuContraseñaSegura123!",
-    "otro_usuario": "OtraContraseña456@"
-}
-```
+> ⚠️ **Cambiar las contraseñas** desde **Configuración → Contraseña** antes de usar en producción.
+> Las contraseñas se almacenan con hash bcrypt en `config.json` (no incluido en el repo).
 
 ---
 
 ## 🟢 Easter Egg — Matrix Mode
 
 ```bash
-# Activar animación Matrix al lanzar
 sudo venv/bin/python3 app.py --matrix-mode
-
-# Con duración personalizada (segundos)
 sudo venv/bin/python3 app.py --matrix-mode --matrix-duration 10
-
-# Puerto personalizado
 sudo venv/bin/python3 app.py --port 8080
 ```
 
@@ -120,23 +108,47 @@ sudo venv/bin/python3 app.py --port 8080
 
 ## 🌐 Agregar Servidores Remotos
 
-1. Ir a **Infraestructura → Servidores Remotos** en el sidebar
-2. Clic en **＋ Agregar Servidor**
-3. Completar: nombre, IP/host, puerto SSH, usuario
-4. Elegir autenticación: **contraseña** o **clave SSH**
-5. ServerShield prueba la conexión automáticamente
+### 🐧 Linux (SSH)
+1. Ir a **Infraestructura → Servidores Remotos → Agregar Servidor**
+2. Seleccionar **🐧 Linux (SSH)**
+3. Ingresar IP, puerto 22, usuario y contraseña o clave SSH
 
-### Autenticación con clave SSH (recomendada)
+### 🪟 Windows (WinRM)
+Habilitar WinRM en el equipo Windows (como Administrador):
+```powershell
+Enable-PSRemoting -Force
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
+```
+En ServerShield seleccionar **🪟 Windows (WinRM)** — puerto 5985 automático.
 
+### 🔀 Switch/Router (SSH)
+Habilitar SSH en el switch:
+```
+# Cisco IOS:
+ip ssh version 2
+line vty 0 4
+ transport input ssh
+ login local
+```
+En ServerShield seleccionar **🔀 Switch/Router (SSH)** — detecta el vendor automáticamente.
+
+### Autenticación con clave SSH (Linux/Switch)
 ```bash
-# Generar clave SSH si no tenés una
 ssh-keygen -t rsa -b 4096 -C "servershield"
-
-# Copiar la clave pública al servidor remoto
 ssh-copy-id usuario@IP-del-servidor
+```
 
-# En ServerShield usar:
-# Tipo: Clave SSH / Ruta: ~/.ssh/id_rsa
+---
+
+## ⬆️ Actualizaciones desde la UI
+
+1. Ir a **Sistema → Actualizaciones**
+2. La app verifica automáticamente si hay commits nuevos en GitHub
+3. Clic en **Aplicar Actualización** para hacer `git pull`
+4. Reiniciar la app para cargar los cambios:
+```bash
+sudo systemctl restart servershield
+# o: Ctrl+C y volver a lanzar
 ```
 
 ---
@@ -177,33 +189,15 @@ sudo systemctl start servershield
 
 ## 📋 Requisitos
 
-- Python 3.8+
-- Linux (Zorin OS / Ubuntu 20.04+ / Debian 11+)
-
-```bash
-sudo apt install python3-venv python3-pip unzip -y
-```
-
-**`requirements.txt`**
 ```
 flask>=3.0.0
 paramiko>=3.0.0
+pywinrm>=0.4.3
+bcrypt>=4.0.0
 ```
 
----
-
-## 🔒 Seguridad en producción
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name tu-dominio.com;
-    allow 192.168.1.0/24;
-    deny all;
-    location / {
-        proxy_pass http://127.0.0.1:5000;
-    }
-}
+```bash
+sudo apt install python3-venv python3-pip -y
 ```
 
 ---
@@ -214,16 +208,21 @@ server {
 servershield/
 ├── app.py                    # Aplicación Flask principal
 ├── matrix_mode.py            # Easter egg Matrix + argparse
+├── remote_cache.py           # Caché + consultas paralelas
 ├── requirements.txt
 ├── .gitignore
 ├── modules/
-│   ├── system_info.py
-│   ├── security_check.py
-│   ├── cve_check.py
-│   ├── crowdsec_mod.py
-│   ├── users_mod.py
-│   ├── ports_mod.py
-│   └── remote_ssh.py         # Multi-servidor SSH
+│   ├── system_info.py        # Métricas locales
+│   ├── security_check.py     # Hardening local
+│   ├── cve_check.py          # CVEs y NVD API
+│   ├── crowdsec_mod.py       # CrowdSec IDS local
+│   ├── users_mod.py          # Usuarios locales
+│   ├── ports_mod.py          # Puertos locales
+│   ├── remote_ssh.py         # Análisis remoto Linux
+│   ├── windows_remote.py     # Análisis remoto Windows
+│   ├── switch_remote.py      # Análisis remoto Switch/Router
+│   ├── updater.py            # Auto-actualización git
+│   └── config_manager.py     # Gestión usuarios y config
 └── templates/
     ├── login.html
     ├── base.html
@@ -234,8 +233,10 @@ servershield/
     ├── security.html
     ├── users.html
     ├── ports.html
-    ├── servers.html           # Dashboard multi-servidor
-    └── server_detail.html
+    ├── servers.html
+    ├── server_detail.html
+    ├── settings.html
+    └── updates.html
 ```
 
 ---
@@ -252,21 +253,24 @@ servershield/
 - [ ] Alertas por email/Telegram cuando un servidor cae
 - [ ] Gráficos históricos de CPU/RAM
 - [ ] Autenticación con 2FA
-- [ ] Exportar análisis en PDF desde la web
-- [ ] Soporte para múltiples nodos simultáneos
+- [ ] Exportar reportes en PDF desde la web
+- [ ] Soporte SNMP para switches sin SSH
+- [ ] Dashboard de métricas comparativas entre servidores
 
 ---
 
 ## 📄 Licencia
 
-MIT License — libre para usar, modificar y distribuir.  
+MIT License — libre para usar, modificar y distribuir.
 Si lo usás en producción o lo mejorás, una ⭐ en el repo es bienvenida.
 
 ---
 
 <div align="center">
 
-**Desarrollado con Python, Flask y demasiado café ☕**  
+**Desarrollado con Python, Flask y demasiado café ☕**
 *"El que no monitorea, no administra."*
+
+[⭐ Star en GitHub](https://github.com/N1x-afl/servershield) · [🐛 Reportar issue](https://github.com/N1x-afl/servershield/issues) · [🔀 Pull Requests](https://github.com/N1x-afl/servershield/pulls)
 
 </div>
