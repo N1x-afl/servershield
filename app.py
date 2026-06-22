@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""ServerShield — Hardening Toolkit"""
+"""ServerShield — Hardening Toolkit con Terminal Web SSH"""
 
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, jsonify)
+from flask_socketio import SocketIO, emit, disconnect
 from functools import wraps
+import threading
+
 from matrix_mode import parse_args, run_matrix_intro
 from modules import system_info, security_check, cve_check, crowdsec_mod, ports_mod, users_mod
 from modules.remote_ssh import (
@@ -11,17 +14,19 @@ from modules.remote_ssh import (
     get_remote_stats, test_connection
 )
 from modules.windows_remote import get_windows_stats, test_connection as win_test_connection
-from modules.switch_remote import get_switch_stats, test_connection as switch_test_connection
+from modules.switch_remote  import get_switch_stats,   test_connection as switch_test_connection
 from modules.config_manager import (
     initialize_config, verify_user, change_password,
     admin_change_password, add_user, remove_user,
     get_users, get_app_config, update_app_config
 )
-from modules.updater import check_for_updates, apply_update
+from modules.updater      import check_for_updates, apply_update
+from modules.terminal_ssh import connect_ssh, send_input, resize_terminal, disconnect_ssh
 from remote_cache import fetch_all_parallel, get_cached, set_cache, invalidate, get_cache_age
 
 app = Flask(__name__)
 app.secret_key = "s3rv3rsh13ld_s3cr3t_k3y_2024"
+socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 
 initialize_config({
     "admin":   ("Adm1n@Shield2024", "admin"),
@@ -50,7 +55,6 @@ def admin_required(f):
 
 
 def _fetch_server(server):
-    """Dispatcher: Linux SSH, Windows WinRM o Switch SSH según os_type"""
     os_type = server.get("os_type", "linux")
     if os_type == "windows":
         return get_windows_stats(server)
@@ -75,7 +79,6 @@ def login():
             return redirect(url_for("dashboard"))
         error = "Credenciales inválidas. Acceso denegado."
     return render_template("login.html", error=error)
-
 
 @app.route("/logout")
 def logout():
@@ -128,7 +131,7 @@ def ports():
                            data=ports_mod.get_ports_info(), active="ports")
 
 
-# ── MULTI-SERVIDOR ────────────────────────────────────────────────────────────
+# ── SERVIDORES REMOTOS ────────────────────────────────────────────────────────
 @app.route("/servers")
 @login_required
 def servers():
@@ -138,7 +141,6 @@ def servers():
     return render_template("servers.html", user=session["user"], role=session["role"],
                            servers=all_servers, stats=stats,
                            cache_ages=cache_ages, active="servers")
-
 
 @app.route("/remote/<path:server_id>")
 @login_required
@@ -151,14 +153,11 @@ def server_detail(server_id):
     return render_template("server_detail.html", user=session["user"],
                            role=session["role"], data=data, active="servers")
 
-
 @app.route("/remote/add", methods=["POST"])
 @login_required
 def remote_add():
     d = request.get_json()
     os_type = d.get("os_type", "linux")
-
-    # Para Windows guardamos credenciales en formato compatible
     ok, msg = add_server(
         name=d.get("name", ""),
         host=d.get("host", ""),
@@ -170,27 +169,21 @@ def remote_add():
     )
     if not ok:
         return jsonify({"ok": False, "message": msg})
-
-    # Agregar os_type al servidor
-    servers = load_servers()
-    for s in servers:
+    servers_list = load_servers()
+    for s in servers_list:
         if s["host"] == d.get("host") and s["port"] == int(d.get("port", 22)):
             s["os_type"] = os_type
             s["use_ssl"] = d.get("use_ssl", False)
     from modules.remote_ssh import save_servers
-    save_servers(servers)
-
+    save_servers(servers_list)
     server = get_server(f"{d['host']}:{d.get('port', 22)}")
     if server:
         if os_type == "windows":
             conn_ok, conn_msg = win_test_connection(server)
-        elif os_type == "switch":
-            conn_ok, conn_msg = switch_test_connection(server)
         else:
             conn_ok, conn_msg = test_connection(server)
         return jsonify({"ok": True, "message": f"Servidor agregado — {conn_msg}"})
     return jsonify({"ok": True, "message": msg})
-
 
 @app.route("/remote/remove/<path:server_id>", methods=["POST"])
 @login_required
@@ -198,7 +191,6 @@ def remote_remove(server_id):
     remove_server(server_id)
     invalidate(server_id)
     return jsonify({"ok": True})
-
 
 @app.route("/remote/refresh/<path:server_id>")
 @login_required
@@ -211,7 +203,7 @@ def remote_refresh(server_id):
     return jsonify({"ok": True})
 
 
-# ── SWITCHES / RED ───────────────────────────────────────────────────────────
+# ── SWITCHES ──────────────────────────────────────────────────────────────────
 @app.route("/switches")
 @login_required
 def switches():
@@ -246,17 +238,16 @@ def switch_add():
     )
     if not ok:
         return jsonify({"ok": False, "message": msg})
-    # Guardar os_type y vendor
-    servers = load_servers()
-    for s in servers:
+    servers_list = load_servers()
+    for s in servers_list:
         if s["host"] == d.get("host") and s["port"] == int(d.get("port", 22)):
             s["os_type"] = "switch"
             s["vendor"]  = d.get("vendor", "auto")
     from modules.remote_ssh import save_servers
-    save_servers(servers)
+    save_servers(servers_list)
     server = get_server(f"{d['host']}:{d.get('port', 22)}")
     if server:
-        ok_conn, conn_msg = switch_test_connection(server)
+        conn_ok, conn_msg = switch_test_connection(server)
         return jsonify({"ok": True, "message": f"Switch agregado — {conn_msg}"})
     return jsonify({"ok": True, "message": msg})
 
@@ -277,6 +268,70 @@ def switch_refresh(server_id):
         set_cache(server_id, data)
     return jsonify({"ok": True})
 
+
+# ── TERMINAL WEB SSH ──────────────────────────────────────────────────────────
+@app.route("/terminal/<path:server_id>")
+@login_required
+def terminal(server_id):
+    # Solo admin puede acceder a la terminal
+    if session.get("role") != "admin":
+        return redirect(url_for("dashboard"))
+    server = get_server(server_id)
+    if not server:
+        return redirect(url_for("servers"))
+    # Windows no soporta SSH terminal
+    if server.get("os_type") == "windows":
+        return redirect(url_for("server_detail", server_id=server_id))
+    return render_template("terminal.html", server=server)
+
+
+# ── SOCKETIO — TERMINAL ───────────────────────────────────────────────────────
+@socketio.on("ssh_connect")
+def on_ssh_connect(data):
+    """Cliente solicita conexión SSH"""
+    # Verificar sesión de Flask
+    if not session.get("user") or session.get("role") != "admin":
+        emit("ssh_error", {"message": "Acceso denegado"})
+        return
+
+    server_id = data.get("server_id")
+    rows = data.get("rows", 24)
+    cols = data.get("cols", 80)
+
+    server = get_server(server_id)
+    if not server:
+        emit("ssh_error", {"message": "Servidor no encontrado"})
+        return
+
+    # Conectar en thread separado para no bloquear
+    t = threading.Thread(
+        target=connect_ssh,
+        args=(request.sid, server, socketio, rows, cols),
+        daemon=True
+    )
+    t.start()
+
+
+@socketio.on("ssh_input")
+def on_ssh_input(data):
+    """Input del usuario → canal SSH"""
+    if not session.get("user") or session.get("role") != "admin":
+        return
+    send_input(request.sid, data.get("input", ""))
+
+
+@socketio.on("resize")
+def on_resize(data):
+    """Redimensionar terminal"""
+    resize_terminal(request.sid, data.get("rows", 24), data.get("cols", 80))
+
+
+@socketio.on("disconnect")
+def on_disconnect():
+    """Limpiar sesión SSH al desconectar"""
+    disconnect_ssh(request.sid)
+
+
 # ── ACTUALIZACIONES ───────────────────────────────────────────────────────────
 @app.route("/updates")
 @admin_required
@@ -286,7 +341,6 @@ def updates():
                            active="updates", status=status,
                            update_result=False, update_ok=None,
                            update_msg=None, update_details=None)
-
 
 @app.route("/updates/apply", methods=["POST"])
 @admin_required
@@ -309,7 +363,6 @@ def settings():
                            app_config=get_app_config(),
                            flash_msg=None, flash_type=None)
 
-
 @app.route("/settings/password", methods=["POST"])
 @login_required
 def settings_password():
@@ -326,7 +379,6 @@ def settings_password():
                            users_list=get_users() if session["role"] == "admin" else [],
                            app_config=get_app_config(),
                            flash_msg=flash_msg, flash_type=flash_type)
-
 
 @app.route("/settings/users/add", methods=["POST"])
 @admin_required
@@ -345,7 +397,6 @@ def settings_users_add():
                            users_list=get_users(), app_config=get_app_config(),
                            flash_msg=flash_msg, flash_type=flash_type)
 
-
 @app.route("/settings/users/delete", methods=["POST"])
 @admin_required
 def settings_users_delete():
@@ -355,7 +406,6 @@ def settings_users_delete():
                            active="settings", active_tab="users",
                            users_list=get_users(), app_config=get_app_config(),
                            flash_msg=msg, flash_type="ok" if ok else "error")
-
 
 @app.route("/settings/users/admin-password", methods=["POST"])
 @admin_required
@@ -372,7 +422,6 @@ def settings_admin_password():
                            active="settings", active_tab="users",
                            users_list=get_users(), app_config=get_app_config(),
                            flash_msg=flash_msg, flash_type=flash_type)
-
 
 @app.route("/settings/app", methods=["POST"])
 @admin_required
@@ -394,12 +443,10 @@ def settings_app():
 def api_stats():
     return jsonify(system_info.get_quick_stats())
 
-
 @app.route("/api/servers")
 @login_required
 def api_servers():
     return jsonify(fetch_all_parallel(load_servers(), _fetch_server))
-
 
 @app.route("/api/updates/check")
 @admin_required
@@ -420,4 +467,4 @@ if __name__ == "__main__":
     if args.matrix_mode:
         print("  Modo: MATRIX MODE ACTIVATED 🟢")
     print("="*60 + "\n")
-    app.run(host=args.host, port=port, debug=False)
+    socketio.run(app, host=args.host, port=port, debug=False, log_output=True)

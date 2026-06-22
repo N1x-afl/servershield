@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal — {{ server.name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+  :root {
+    --green: #00ff41;
+    --green-dim: #00cc33;
+    --bg: #030d05;
+    --panel: #050f07;
+    --border: rgba(0,255,65,0.2);
+    --red: #ff3333;
+    --amber: #ffb300;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-display: 'Orbitron', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: var(--font-mono);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px,
+                rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    height: 46px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .topbar-logo {
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    color: var(--green);
+    text-shadow: 0 0 10px rgba(0,255,65,0.5);
+    letter-spacing: 2px;
+  }
+
+  .topbar-sep { color: var(--border); }
+
+  .server-info {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px;
+  }
+
+  .server-name {
+    color: var(--green);
+    font-weight: bold;
+  }
+
+  .server-host {
+    color: rgba(0,255,65,0.4);
+    font-size: 10px;
+  }
+
+  .os-badge {
+    font-size: 9px; padding: 2px 8px;
+    border: 1px solid var(--border);
+    color: rgba(0,255,65,0.6);
+    letter-spacing: 1px;
+  }
+
+  .status-indicator {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; margin-left: auto;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  .dot-connecting { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .dot-connected  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-error      { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  .btn-close {
+    font-family: var(--font-mono); font-size: 10px;
+    color: rgba(255,51,51,0.7); background: transparent;
+    border: 1px solid rgba(255,51,51,0.3);
+    padding: 4px 10px; cursor: pointer; transition: all 0.2s;
+    text-decoration: none; letter-spacing: 1px;
+  }
+  .btn-close:hover { background: rgba(255,51,51,0.1); color: var(--red); }
+
+  /* TOOLBAR */
+  .toolbar {
+    height: 36px;
+    background: rgba(0,255,65,0.03);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 12px; gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-tool {
+    font-family: var(--font-mono); font-size: 9px;
+    color: rgba(0,255,65,0.5); background: transparent;
+    border: 1px solid rgba(0,255,65,0.15);
+    padding: 3px 10px; cursor: pointer; transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+  .btn-tool:hover { color: var(--green); border-color: var(--border); }
+
+  .toolbar-info {
+    margin-left: auto; font-size: 9px;
+    color: rgba(0,255,65,0.3); letter-spacing: 1px;
+  }
+
+  /* TERMINAL */
+  .terminal-wrapper {
+    flex: 1;
+    padding: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #terminal {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Xterm overrides */
+  .xterm { height: 100% !important; }
+  .xterm-viewport { background: #010a02 !important; }
+  .xterm-screen { background: #010a02 !important; }
+
+  /* OVERLAY de estado */
+  .overlay {
+    position: absolute; inset: 8px;
+    background: rgba(3,13,5,0.95);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px; z-index: 100;
+  }
+  .overlay.hidden { display: none; }
+
+  .overlay-icon { font-size: 36px; opacity: 0.6; }
+  .overlay-title {
+    font-family: var(--font-display); font-size: 14px;
+    color: var(--green); letter-spacing: 2px;
+  }
+  .overlay-msg {
+    font-size: 11px; color: rgba(0,255,65,0.5);
+    text-align: center; max-width: 400px; line-height: 1.6;
+  }
+  .overlay-spinner {
+    width: 32px; height: 32px;
+    border: 2px solid rgba(0,255,65,0.1);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* LOG DRAWER */
+  .log-drawer {
+    height: 0; overflow: hidden;
+    background: rgba(0,0,0,0.6);
+    border-top: 1px solid var(--border);
+    transition: height 0.2s;
+    flex-shrink: 0;
+  }
+  .log-drawer.open { height: 80px; }
+  .log-content {
+    padding: 6px 12px;
+    font-size: 9px; color: rgba(0,255,65,0.4);
+    overflow-y: auto; height: 100%;
+    font-family: var(--font-mono);
+  }
+  .log-entry { padding: 1px 0; }
+  .log-entry.warn  { color: var(--amber); }
+  .log-entry.error { color: var(--red); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">⬡ SERVERSHIELD</div>
+  <span class="topbar-sep">|</span>
+  <div class="server-info">
+    <span class="server-name">{{ server.name }}</span>
+    <span class="server-host">{{ server.host }}:{{ server.port }}</span>
+    <span class="os-badge">
+      {% if server.os_type == 'windows' %}🪟 WINRM
+      {% elif server.os_type == 'switch' %}🔀 SSH-CLI
+      {% else %}🐧 SSH{% endif %}
+    </span>
+  </div>
+  <div class="status-indicator">
+    <span class="status-dot dot-connecting" id="status-dot"></span>
+    <span id="status-text" style="color:rgba(0,255,65,0.5);">CONECTANDO...</span>
+  </div>
+  <a href="javascript:history.back()" class="btn-close">✕ CERRAR</a>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <button class="btn-tool" onclick="sendCmd('clear')">🗑 LIMPIAR</button>
+  <button class="btn-tool" onclick="fitTerminal()">⊞ AJUSTAR</button>
+  <button class="btn-tool" onclick="toggleLog()">📋 LOG</button>
+  {% if server.os_type != 'switch' and server.os_type != 'windows' %}
+  <button class="btn-tool" onclick="sendCmd('sudo apt update && sudo apt list --upgradable 2>/dev/null')">⬆ VER UPDATES</button>
+  <button class="btn-tool" onclick="sendCmd('df -h && free -h && uptime')">📊 STATS</button>
+  <button class="btn-tool" onclick="sendCmd('ss -tlnp | grep LISTEN')">🔌 PUERTOS</button>
+  {% elif server.os_type == 'switch' %}
+  <button class="btn-tool" onclick="sendCmd('get system status')">📊 STATUS</button>
+  <button class="btn-tool" onclick="sendCmd('get system performance status')">📈 PERF</button>
+  <button class="btn-tool" onclick="sendCmd('show firewall policy')">🔥 POLICIES</button>
+  {% endif %}
+  <span class="toolbar-info" id="session-info">SESIÓN ACTIVA — SOLO ADMIN</span>
+</div>
+
+<!-- TERMINAL -->
+<div class="terminal-wrapper">
+  <!-- Overlay de carga -->
+  <div class="overlay" id="overlay">
+    <div class="overlay-spinner"></div>
+    <div class="overlay-title">ESTABLECIENDO CONEXIÓN</div>
+    <div class="overlay-msg" id="overlay-msg">
+      Conectando a {{ server.host }}:{{ server.port }} vía SSH...
+    </div>
+  </div>
+  <div id="terminal"></div>
+</div>
+
+<!-- LOG DRAWER -->
+<div class="log-drawer" id="log-drawer">
+  <div class="log-content" id="log-content"></div>
+</div>
+
+<script>
+const SERVER_ID  = {{ server.id | tojson }};
+const SERVER_NAME = {{ server.name | tojson }};
+const OS_TYPE    = {{ (server.os_type or 'linux') | tojson }};
+
+// ── XTERM ────────────────────────────────────────────────────────────────────
+const term = new Terminal({
+  theme: {
+    background:  '#010a02',
+    foreground:  '#00ff41',
+    cursor:      '#00ff41',
+    cursorAccent:'#010a02',
+    selection:   'rgba(0,255,65,0.2)',
+    black:       '#030d05',
+    green:       '#00ff41',
+    brightGreen: '#00ff41',
+    white:       '#ccffcc',
+    brightWhite: '#ffffff',
+  },
+  fontFamily: "'Share Tech Mono', 'Courier New', monospace",
+  fontSize: 13,
+  lineHeight: 1.2,
+  cursorBlink: true,
+  cursorStyle: 'block',
+  scrollback: 2000,
+  allowProposedApi: true,
+});
+
+const fitAddon = new FitAddon.FitAddon();
+term.loadAddon(fitAddon);
+term.open(document.getElementById('terminal'));
+fitAddon.fit();
+
+function fitTerminal() {
+  fitAddon.fit();
+  const { rows, cols } = term;
+  socket.emit('resize', { rows, cols, server_id: SERVER_ID });
+}
+
+window.addEventListener('resize', fitTerminal);
+
+// ── SOCKET.IO ────────────────────────────────────────────────────────────────
+const socket = io({ transports: ['websocket', 'polling'] });
+
+socket.on('connect', () => {
+  addLog('WebSocket conectado — iniciando sesión SSH...');
+  const { rows, cols } = term;
+  socket.emit('ssh_connect', {
+    server_id: SERVER_ID,
+    rows, cols
+  });
+});
+
+socket.on('ssh_output', (data) => {
+  term.write(data.output);
+});
+
+socket.on('ssh_connected', (data) => {
+  document.getElementById('overlay').classList.add('hidden');
+  setStatus('connected', `CONECTADO — ${SERVER_NAME}`);
+  addLog(`✓ Sesión SSH establecida en ${data.host}`);
+  term.focus();
+});
+
+socket.on('ssh_error', (data) => {
+  document.getElementById('overlay-msg').textContent = '✕ ' + data.message;
+  document.querySelector('.overlay-spinner').style.display = 'none';
+  document.querySelector('.overlay-icon') || 
+    document.querySelector('.overlay-title').insertAdjacentHTML('beforebegin', '<div class="overlay-icon">✕</div>');
+  setStatus('error', 'ERROR DE CONEXIÓN');
+  addLog('✕ ' + data.message, 'error');
+});
+
+socket.on('ssh_closed', () => {
+  setStatus('error', 'CONEXIÓN CERRADA');
+  term.write('\r\n\x1b[31m[ Sesión SSH terminada ]\x1b[0m\r\n');
+  addLog('Sesión SSH cerrada', 'warn');
+});
+
+socket.on('disconnect', () => {
+  setStatus('error', 'DESCONECTADO');
+  addLog('WebSocket desconectado', 'warn');
+});
+
+// Input del usuario → SSH
+term.onData((data) => {
+  socket.emit('ssh_input', { input: data, server_id: SERVER_ID });
+});
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+function setStatus(state, text) {
+  const dot  = document.getElementById('status-dot');
+  const span = document.getElementById('status-text');
+  dot.className = 'status-dot dot-' + state;
+  span.textContent = text;
+  span.style.color = state === 'connected' ? 'var(--green)' :
+                     state === 'error'     ? 'var(--red)'   : 'var(--amber)';
+}
+
+function sendCmd(cmd) {
+  socket.emit('ssh_input', { input: cmd + '\n', server_id: SERVER_ID });
+  term.focus();
+}
+
+let logOpen = false;
+function toggleLog() {
+  logOpen = !logOpen;
+  document.getElementById('log-drawer').classList.toggle('open', logOpen);
+}
+
+function addLog(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = 'log-entry ' + type;
+  el.textContent = new Date().toLocaleTimeString() + ' — ' + msg;
+  const c = document.getElementById('log-content');
+  c.appendChild(el);
+  c.scrollTop = c.scrollHeight;
+}
+
+// Actualizar tamaño al cargar
+setTimeout(fitTerminal, 200);
+</script>
+</body>
+</html>
