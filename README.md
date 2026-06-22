@@ -210,6 +210,8 @@ flask>=3.0.0
 paramiko>=3.0.0
 pywinrm>=0.4.3
 bcrypt>=4.0.0
+telnetlib3>=4.0.0
+flask-socketio>=5.0.0
 ```
 
 ```bash
