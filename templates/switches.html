@@ -290,6 +290,15 @@
       </div>
     </div>
 
+    <label class="modal-label">Protocolo de conexión</label>
+    <select class="modal-select" id="sw-protocol" onchange="updateProtocol()">
+      <option value="ssh">🔒 SSH (recomendado)</option>
+      <option value="telnet">⚠ Telnet (legacy)</option>
+    </select>
+    <div id="telnet-warning" style="display:none;font-size:9px;color:var(--amber);margin:-6px 0 10px;padding:6px 10px;border:1px solid rgba(255,179,0,0.3);background:rgba(255,179,0,0.05);">
+      ⚠ Telnet transmite en texto plano. Usar solo en redes internas controladas.
+    </div>
+
     <label class="modal-label">Vendor / Fabricante</label>
     <select class="modal-select" id="sw-vendor" onchange="updateVendorHint()">
       <option value="auto">🔍 Auto-detectar</option>
@@ -324,6 +333,19 @@
 
 {% block extra_js %}
 <script>
+function updateProtocol() {
+  const proto = document.getElementById('sw-protocol').value;
+  const portInput = document.getElementById('sw-port');
+  const warning = document.getElementById('telnet-warning');
+  if (proto === 'telnet') {
+    portInput.value = '23';
+    warning.style.display = 'block';
+  } else {
+    portInput.value = '22';
+    warning.style.display = 'none';
+  }
+}
+
 const vendorHints = {
   'auto':     'El vendor se detecta automáticamente al conectar',
   'cisco':    'Usuario: admin / enable — Asegurate de tener SSH v2 habilitado',
@@ -363,6 +385,7 @@ async function addSwitch() {
     auth_type: 'password',
     os_type:   'switch',
     vendor:    document.getElementById('sw-vendor').value,
+    protocol:  document.getElementById('sw-protocol').value,
   };
 
   if (!body.name || !body.host || !body.username) {

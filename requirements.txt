@@ -1,5 +1,5 @@
 bcrypt==5.0.0
-eventlet==0.41.0
 paramiko==4.0.0
 python-socketio==5.16.3
 pywinrm==0.5.0
+telnetlib3==4.0.5

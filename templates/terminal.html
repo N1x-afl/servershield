@@ -6,9 +6,9 @@
 <title>Terminal — {{ server.name }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
-<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/addon-fit/addon-fit.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   :root {
@@ -211,9 +211,15 @@
     <span class="server-host">{{ server.host }}:{{ server.port }}</span>
     <span class="os-badge">
       {% if server.os_type == 'windows' %}🪟 WINRM
+      {% elif server.os_type == 'switch' and server.protocol == 'telnet' %}🔀 TELNET ⚠
       {% elif server.os_type == 'switch' %}🔀 SSH-CLI
       {% else %}🐧 SSH{% endif %}
     </span>
+    {% if server.protocol == 'telnet' %}
+    <span style="font-size:9px;color:var(--amber);border:1px solid rgba(255,179,0,0.3);padding:2px 8px;">
+      TEXTO PLANO — SOLO RED INTERNA
+    </span>
+    {% endif %}
   </div>
   <div class="status-indicator">
     <span class="status-dot dot-connecting" id="status-dot"></span>

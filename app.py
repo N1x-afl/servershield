@@ -22,6 +22,10 @@ from modules.config_manager import (
 )
 from modules.updater      import check_for_updates, apply_update
 from modules.terminal_ssh import connect_ssh, send_input, resize_terminal, disconnect_ssh
+from modules.telnet_remote import (
+    get_telnet_stats, test_connection as telnet_test_connection,
+    connect_telnet_terminal, send_telnet_input, disconnect_telnet
+)
 from remote_cache import fetch_all_parallel, get_cached, set_cache, invalidate, get_cache_age
 
 app = Flask(__name__)
@@ -55,10 +59,13 @@ def admin_required(f):
 
 
 def _fetch_server(server):
-    os_type = server.get("os_type", "linux")
+    os_type  = server.get("os_type", "linux")
+    protocol = server.get("protocol", "ssh")
     if os_type == "windows":
         return get_windows_stats(server)
     elif os_type == "switch":
+        if protocol == "telnet":
+            return get_telnet_stats(server)
         return get_switch_stats(server)
     return get_remote_stats(server)
 
@@ -241,13 +248,17 @@ def switch_add():
     servers_list = load_servers()
     for s in servers_list:
         if s["host"] == d.get("host") and s["port"] == int(d.get("port", 22)):
-            s["os_type"] = "switch"
-            s["vendor"]  = d.get("vendor", "auto")
+            s["os_type"]  = "switch"
+            s["vendor"]   = d.get("vendor", "auto")
+            s["protocol"] = d.get("protocol", "ssh")
     from modules.remote_ssh import save_servers
     save_servers(servers_list)
     server = get_server(f"{d['host']}:{d.get('port', 22)}")
     if server:
-        conn_ok, conn_msg = switch_test_connection(server)
+        if d.get("protocol") == "telnet":
+            conn_ok, conn_msg = telnet_test_connection(server)
+        else:
+            conn_ok, conn_msg = switch_test_connection(server)
         return jsonify({"ok": True, "message": f"Switch agregado — {conn_msg}"})
     return jsonify({"ok": True, "message": msg})
 
@@ -273,13 +284,11 @@ def switch_refresh(server_id):
 @app.route("/terminal/<path:server_id>")
 @login_required
 def terminal(server_id):
-    # Solo admin puede acceder a la terminal
     if session.get("role") != "admin":
         return redirect(url_for("dashboard"))
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
-    # Windows no soporta SSH terminal
     if server.get("os_type") == "windows":
         return redirect(url_for("server_detail", server_id=server_id))
     return render_template("terminal.html", server=server)
@@ -303,21 +312,34 @@ def on_ssh_connect(data):
         emit("ssh_error", {"message": "Servidor no encontrado"})
         return
 
-    # Conectar en thread separado para no bloquear
-    t = threading.Thread(
-        target=connect_ssh,
-        args=(request.sid, server, socketio, rows, cols),
-        daemon=True
-    )
+    # Conectar en thread separado — SSH o Telnet según protocolo
+    protocol = server.get("protocol", "ssh")
+    if protocol == "telnet":
+        t = threading.Thread(
+            target=connect_telnet_terminal,
+            args=(request.sid, server, socketio),
+            daemon=True
+        )
+    else:
+        t = threading.Thread(
+            target=connect_ssh,
+            args=(request.sid, server, socketio, rows, cols),
+            daemon=True
+        )
     t.start()
 
 
 @socketio.on("ssh_input")
 def on_ssh_input(data):
-    """Input del usuario → canal SSH"""
+    """Input del usuario → canal SSH o Telnet"""
     if not session.get("user") or session.get("role") != "admin":
         return
-    send_input(request.sid, data.get("input", ""))
+    server_id = data.get("server_id", "")
+    server = get_server(server_id) if server_id else None
+    if server and server.get("protocol") == "telnet":
+        send_telnet_input(request.sid, data.get("input", ""))
+    else:
+        send_input(request.sid, data.get("input", ""))
 
 
 @socketio.on("resize")
@@ -328,8 +350,9 @@ def on_resize(data):
 
 @socketio.on("disconnect")
 def on_disconnect():
-    """Limpiar sesión SSH al desconectar"""
+    """Limpiar sesión SSH o Telnet al desconectar"""
     disconnect_ssh(request.sid)
+    disconnect_telnet(request.sid)
 
 
 # ── ACTUALIZACIONES ───────────────────────────────────────────────────────────
@@ -467,4 +490,4 @@ if __name__ == "__main__":
     if args.matrix_mode:
         print("  Modo: MATRIX MODE ACTIVATED 🟢")
     print("="*60 + "\n")
-    socketio.run(app, host=args.host, port=port, debug=False, log_output=True)
+    socketio.run(app, host=args.host, port=port, debug=False)
