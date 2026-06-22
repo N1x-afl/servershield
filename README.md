@@ -52,6 +52,14 @@ Linux · Windows · Switches · Firewalls · Multi-dispositivo vía SSH/WinRM. E
 | 🟡 **MikroTik** RouterOS | SSH | Interfaces, VLANs, usuarios, firewall rules |
 | 🔴 **Juniper** JunOS | SSH | Interfaces, VLANs, firewall, usuarios |
 | 🟠 **Fortinet** FortiGate/FortiSwitch | SSH | Interfaces, políticas, usuarios admin, NTP, logging |
+| 🔌 **Dispositivos Legacy** | Telnet | Cisco Catalyst 2960 y similares |
+
+### 🖥️ Terminal Web SSH/Telnet
+- Terminal interactiva en el navegador con xterm.js
+- Conexión en tiempo real vía WebSocket
+- Soporte SSH (Linux, switches) y Telnet (dispositivos legacy)
+- Botones rápidos: updates, stats, puertos
+- Solo accesible para usuario admin
 
 **Vendors de switch soportados:** Cisco IOS/IOS-XE · HP/Aruba · MikroTik · Juniper
 
