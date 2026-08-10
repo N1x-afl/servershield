@@ -72,6 +72,6 @@ def fetch_all_parallel(servers, fetch_fn):
 
     # Esperar a todos con timeout de 30 segundos
     for t in threads:
-        t.join(timeout=45)
+        t.join(timeout=90)
 
     return results

@@ -31,7 +31,7 @@ def _get_client(server):
     return client
 
 
-def _run_cmd(shell, cmd, wait=2.0):
+def _run_cmd(shell, cmd, wait=1.2):
     """Ejecutar comando en shell interactivo y devolver output"""
     shell.send(cmd + "\n")
     time.sleep(wait)
@@ -138,7 +138,7 @@ def get_switch_stats(server):
         outputs = {"version": ver_out}
         for key, cmd in cmds.items():
             if cmd:
-                out = _clean(_run_cmd(shell, cmd, wait=2.5))
+                out = _clean(_run_cmd(shell, cmd, wait=1.5))
                 outputs[key] = out
 
         client.close()
