@@ -58,6 +58,10 @@ def admin_required(f):
     return decorated
 
 
+
+def _decode_id(sid):
+    return sid.replace("COLON", ":")
+
 def _fetch_server(server):
     os_type  = server.get("os_type", "linux")
     protocol = server.get("protocol", "ssh")
@@ -152,6 +156,7 @@ def servers():
 @app.route("/remote/<path:server_id>")
 @login_required
 def server_detail(server_id):
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
@@ -195,6 +200,7 @@ def remote_add():
 @app.route("/remote/remove/<path:server_id>", methods=["POST"])
 @login_required
 def remote_remove(server_id):
+    server_id = _decode_id(server_id)
     remove_server(server_id)
     invalidate(server_id)
     return jsonify({"ok": True})
@@ -202,6 +208,7 @@ def remote_remove(server_id):
 @app.route("/remote/refresh/<path:server_id>")
 @login_required
 def remote_refresh(server_id):
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if server:
         invalidate(server_id)
@@ -222,6 +229,7 @@ def switches():
 @app.route("/switch/<path:server_id>")
 @login_required
 def switch_detail(server_id):
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("switches"))
@@ -265,6 +273,7 @@ def switch_add():
 @app.route("/switch/remove/<path:server_id>", methods=["POST"])
 @login_required
 def switch_remove(server_id):
+    server_id = _decode_id(server_id)
     remove_server(server_id)
     invalidate(server_id)
     return jsonify({"ok": True})
@@ -272,6 +281,7 @@ def switch_remove(server_id):
 @app.route("/switch/refresh/<path:server_id>")
 @login_required
 def switch_refresh(server_id):
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if server:
         invalidate(server_id)
@@ -286,6 +296,7 @@ def switch_refresh(server_id):
 def terminal(server_id):
     if session.get("role") != "admin":
         return redirect(url_for("dashboard"))
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))

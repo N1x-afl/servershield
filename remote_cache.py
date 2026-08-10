@@ -10,7 +10,7 @@ from datetime import datetime
 # Caché global — { server_id: { data: {...}, timestamp: float } }
 _cache = {}
 _cache_lock = threading.Lock()
-CACHE_TTL = 300  # 5 minutos
+CACHE_TTL = 600  # 5 minutos
 
 
 def get_cached(server_id):
@@ -72,6 +72,6 @@ def fetch_all_parallel(servers, fetch_fn):
 
     # Esperar a todos con timeout de 30 segundos
     for t in threads:
-        t.join(timeout=30)
+        t.join(timeout=45)
 
     return results

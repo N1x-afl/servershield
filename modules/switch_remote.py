@@ -18,8 +18,8 @@ def _get_client(server):
         "hostname": server["host"],
         "port":     server["port"],
         "username": server["username"],
-        "timeout":  10,
-        "banner_timeout": 15,
+        "timeout":  20,
+        "banner_timeout": 25,
         "allow_agent": False,
         "look_for_keys": False,
     }

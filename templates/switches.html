@@ -246,12 +246,12 @@
 
   <!-- Acciones -->
   <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-    <a href="/switch/{{ s.server_id or s.id }}" class="btn-primary"
+    <a href="/switch/{{ (s.server_id or s.id)|replace(":", "COLON") }}" class="btn-primary"
        style="font-size:9px;padding:6px 12px;text-decoration:none;">▶ DETALLE</a>
     <button class="btn-primary" style="font-size:9px;padding:6px 10px;"
-            onclick="refreshSwitch('{{ (s.server_id or s.id)|replace(':', '__COLON__') }}', this)">⟳</button>
+            onclick="refreshSwitch('{{ (s.server_id or s.id)|replace(":", "COLON") }}', this)">⟳</button>
     <button class="btn-danger" style="margin-left:auto;"
-            onclick="removeSwitch('{{ (s.server_id or s.id)|replace(':', '__COLON__') }}', '{{ s.server_name or s.name }}')">✕</button>
+            onclick="removeSwitch('{{ (s.server_id or s.id)|replace(":", "COLON") }}', '{{ s.server_name or s.name }}')">✕</button>
   </div>
 </div>
 {% endfor %}
@@ -422,14 +422,14 @@ async function addSwitch() {
 
 async function removeSwitch(id, name) {
   if (!confirm(`¿Eliminar "${name}"?`)) return;
-  await fetch('/switch/remove/' + id.replace(/:/g, '__COLON__'), { method: 'POST' });
+  await fetch('/switch/remove/' + id, { method: 'POST' });
   showToast('Dispositivo eliminado');
   setTimeout(() => location.reload(), 800);
 }
 
 async function refreshSwitch(id, btn) {
   btn.textContent = '⟳';
-  await fetch('/switch/refresh/' + encodeURIComponent(id));
+  await fetch('/switch/refresh/' + id);
   location.reload();
 }
 </script>

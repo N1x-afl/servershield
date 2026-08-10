@@ -283,3 +283,46 @@ function getCurrentFont() {
     document.head.appendChild(link);
   }
 })();
+// ── INIT FONT PANEL (global para settings.html) ───────────────────────────────
+function initFontPanel() {
+  if (typeof FONTS === 'undefined') return;
+  const grid = document.getElementById('font-grid');
+  if (!grid || grid.children.length > 0) return;
+  const current = getCurrentFont();
+
+  Object.entries(FONTS).forEach(([id, font]) => {
+    const card = document.createElement('div');
+    const isActive = id === current;
+    card.style.cssText = `padding:14px;border:2px solid ${isActive ? 'var(--green)' : 'var(--border)'};cursor:pointer;transition:all 0.2s;background:${isActive ? 'rgba(0,255,65,0.05)' : 'transparent'};position:relative;`;
+    card.innerHTML = `
+      <div style="font-family:${font.display};font-size:15px;font-weight:700;color:var(--green);margin-bottom:5px;">${font.emoji} ${font.name}</div>
+      <div style="font-family:${font.mono};font-size:12px;color:var(--text-dim);margin-bottom:3px;">01010 // root@server</div>
+      <div style="font-size:10px;color:var(--text-faint);">${font.description}</div>
+      ${isActive ? '<div style="position:absolute;top:6px;right:8px;font-size:11px;color:var(--green);">✓ ACTIVA</div>' : ''}
+    `;
+    card.addEventListener('click', () => {
+      applyFont(id);
+      document.querySelectorAll('#font-grid > div').forEach(c => {
+        c.style.border = '2px solid var(--border)';
+        c.style.background = 'transparent';
+        const chk = c.querySelector('[style*="ACTIVA"]');
+        if (chk) chk.remove();
+      });
+      card.style.border = '2px solid var(--green)';
+      card.style.background = 'rgba(0,255,65,0.05)';
+      const chk = document.createElement('div');
+      chk.style.cssText = 'position:absolute;top:6px;right:8px;font-size:11px;color:var(--green);';
+      chk.textContent = '✓ ACTIVA';
+      card.appendChild(chk);
+      const disp = document.getElementById('font-name-display');
+      if (disp) disp.textContent = 'Fuente actual: ' + font.emoji + ' ' + font.name;
+      fetch('/settings/font', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({font:id})});
+    });
+    grid.appendChild(card);
+  });
+
+  const disp = document.getElementById('font-name-display');
+  if (disp && FONTS[current]) {
+    disp.textContent = 'Fuente actual: ' + FONTS[current].emoji + ' ' + FONTS[current].name;
+  }
+}

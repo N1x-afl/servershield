@@ -650,10 +650,10 @@
 <!-- Volver -->
 <div style="margin-top:20px;display:flex;gap:20px;">
   <a href="/servers" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">← Volver a servidores</a>
-  <a href="/remote/{{ data.server_id }}" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">⟳ Actualizar</a>
+  <a href="/remote/{{ data.server_id|replace(":", "COLON") }}" style="color:rgba(0,255,65,0.5);text-decoration:none;font-size:11px;">⟳ Actualizar</a>
   {% if role == 'admin' and data.os_type != 'windows' %}
   &nbsp;&nbsp;
-  <a href="/terminal/{{ data.server_id }}"
+  <a href="/terminal/{{ data.server_id|replace(":", "COLON") }}"
      style="color:var(--green);text-decoration:none;font-size:11px;border:1px solid var(--border);padding:4px 12px;"
      target="_blank">▶ TERMINAL</a>
   {% endif %}
