@@ -4,30 +4,36 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ServerShield — {% block title %}Dashboard{% endblock %}</title>
+<script src="/static/js/themes.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    --green: #00ff41;
-    --green-dim: #00cc33;
-    --green-dark: #003d10;
-    --green-glow: rgba(0,255,65,0.15);
-    --amber: #ffb300;
-    --red: #ff3333;
-    --bg: #030d05;
-    --panel: #050f07;
-    --panel2: #060e08;
-    --border: rgba(0,255,65,0.2);
+    --green:         #00ff41;
+    --green-dim:     #00cc33;
+    --green-dark:    #003d10;
+    --green-glow:    rgba(0,255,65,0.15);
+    --amber:         #ffb300;
+    --red:           #ff3333;
+    --bg:            #030d05;
+    --panel:         #050f07;
+    --panel2:        #060e08;
+    --border:        rgba(0,255,65,0.2);
     --border-bright: rgba(0,255,65,0.4);
-    --font-mono: 'Share Tech Mono', monospace;
-    --font-display: 'Orbitron', monospace;
-    --sidebar-w: 220px;
+    --text-main:     #00ff41;
+    --text-dim:      rgba(0,255,65,0.5);
+    --text-faint:    rgba(0,255,65,0.25);
+    --header-bg:     #052e16;
+    --scanline:      rgba(0,0,0,0.06);
+    --font-mono:     'Share Tech Mono', monospace;
+    --font-display:  'Orbitron', monospace;
+    --sidebar-w:     220px;
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
-    color: var(--green);
+    color: var(--text-main);
     font-family: var(--font-mono);
     min-height: 100vh;
     display: flex;
@@ -45,7 +51,7 @@
   /* ── TOP BAR ──────────────────────────────────────────────────── */
   .topbar {
     height: 48px;
-    background: var(--panel);
+    background: var(--header-bg);
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -69,7 +75,7 @@
 
   .topbar-status {
     display: flex; gap: 14px; align-items: center;
-    font-size: 10px; color: rgba(0,255,65,0.5);
+    font-size: 11px; color: rgba(0,255,65,0.5);
     margin-left: auto;
   }
 
@@ -125,8 +131,8 @@
   }
 
   .sidebar-section-label {
-    font-size: 9px;
-    letter-spacing: 3px;
+    font-size: 10px;
+    letter-spacing: 2px;
     color: rgba(0,255,65,0.35);
     text-transform: uppercase;
     padding: 0 16px 8px;
@@ -139,7 +145,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 16px;
-    font-size: 11px;
+    font-size: 13px;
     color: rgba(0,255,65,0.55);
     text-decoration: none;
     transition: all 0.15s;
@@ -231,7 +237,7 @@
   }
 
   .card-title {
-    font-size: 10px;
+    font-size: 11px;
     letter-spacing: 3px;
     color: rgba(0,255,65,0.5);
     text-transform: uppercase;
@@ -298,10 +304,11 @@
   }
 
   .table-term td {
-    padding: 7px 10px;
+    padding: 8px 10px;
     border-bottom: 1px solid rgba(0,255,65,0.06);
     color: rgba(0,255,65,0.8);
     vertical-align: middle;
+    font-size: 12px;
   }
 
   .table-term tr:hover td { background: rgba(0,255,65,0.03); }
@@ -310,9 +317,9 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 0;
+    padding: 9px 0;
     border-bottom: 1px solid rgba(0,255,65,0.06);
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .check-icon { font-size: 14px; width: 20px; text-align: center; }
@@ -428,7 +435,7 @@
     <div class="sidebar-section">
       <div class="sidebar-section-label">Infraestructura</div>
       <a href="/servers" class="nav-item {% if active=='servers' %}active{% endif %}">
-        <span class="nav-icon">🖥️</span> Servidores Remotos
+        <span class="nav-icon">⊞</span> Servidores Remotos
       </a>
       <a href="/switches" class="nav-item {% if active=='switches' %}active{% endif %}">
         <span class="nav-icon">🔀</span> Switches / Red

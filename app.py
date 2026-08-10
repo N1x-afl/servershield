@@ -460,6 +460,25 @@ def settings_app():
                            flash_msg=msg, flash_type="ok" if ok else "error")
 
 
+@app.route("/settings/theme", methods=["POST"])
+@login_required
+def settings_theme():
+    """Guardar tema elegido por el usuario"""
+    d = request.get_json()
+    theme = d.get("theme", "matrix")
+    # Guardar en config por usuario
+    try:
+        from modules.config_manager import load_config, save_config
+        config = load_config()
+        if config:
+            if "user_themes" not in config:
+                config["user_themes"] = {}
+            config["user_themes"][session["user"]] = theme
+            save_config(config)
+    except Exception:
+        pass
+    return jsonify({"ok": True})
+
 # ── API ───────────────────────────────────────────────────────────────────────
 @app.route("/api/stats")
 @login_required
@@ -490,4 +509,4 @@ if __name__ == "__main__":
     if args.matrix_mode:
         print("  Modo: MATRIX MODE ACTIVATED 🟢")
     print("="*60 + "\n")
-    socketio.run(app, host=args.host, port=port, debug=False)
+    socketio.run(app, host=args.host, port=port, debug=False, allow_unsafe_werkzeug=True)

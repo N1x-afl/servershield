@@ -118,6 +118,8 @@
   <button class="stab {% if active_tab == 'app' %}active{% endif %}"
           onclick="switchStab('app', this)">⚙ APP</button>
   {% endif %}
+  <button class="stab {% if active_tab == 'theme' %}active{% endif %}"
+          onclick="switchStab('theme', this)">🎨 TEMA</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -332,6 +334,43 @@
 </div>
 {% endif %}
 
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB: TEMA -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="stab-theme" class="stab-panel {% if active_tab == 'theme' %}active{% endif %}">
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🎨 Seleccionar Tema</div>
+      <div id="theme-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">◈ Vista previa</div>
+      <div id="theme-preview" style="padding:16px;border:1px solid var(--border);background:var(--bg);">
+        <div style="font-family:var(--font-display);font-size:14px;color:var(--green);margin-bottom:8px;">
+          ⬡ SERVERSHIELD
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">
+          Estado del servidor — ONLINE
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <span style="padding:2px 8px;border:1px solid var(--border);font-size:9px;color:var(--green);">ACTIVO</span>
+          <span style="padding:2px 8px;border:1px solid rgba(255,51,51,0.4);font-size:9px;color:var(--red);">DANGER</span>
+          <span style="padding:2px 8px;border:1px solid rgba(255,179,0,0.4);font-size:9px;color:var(--amber);">WARN</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:65%;background:var(--green);border-radius:3px;"></div>
+        </div>
+        <div style="font-size:9px;color:var(--text-faint);margin-top:8px;font-family:var(--font-mono);">
+          CPU: 65% · RAM: 72% · UPTIME: 42d
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:10px;color:var(--text-dim);" id="theme-name-display">
+        Tema actual: cargando...
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -368,5 +407,76 @@ function showAdminPwModal(username) {
 function closeAdminPwModal() {
   document.getElementById('admin-pw-modal').style.display = 'none';
 }
+
+// ── THEME MANAGER ────────────────────────────────────────────────────────────
+function initThemePanel() {
+  if (typeof THEMES === 'undefined') return;
+
+  const grid = document.getElementById('theme-grid');
+  if (!grid) return;
+
+  const current = getCurrentTheme();
+
+  Object.entries(THEMES).forEach(([id, theme]) => {
+    const card = document.createElement('div');
+    const isActive = id === current;
+
+    card.style.cssText = `
+      padding: 12px;
+      border: 2px solid ${isActive ? 'var(--green)' : 'var(--border)'};
+      cursor: pointer;
+      transition: all 0.2s;
+      background: ${isActive ? 'rgba(0,255,65,0.05)' : 'transparent'};
+      position: relative;
+    `;
+
+    card.innerHTML = `
+      <div style="font-size:20px;margin-bottom:6px;">${theme.emoji}</div>
+      <div style="font-family:var(--font-display);font-size:10px;font-weight:700;
+                  color:var(--green);letter-spacing:1px;margin-bottom:3px;">${theme.name}</div>
+      <div style="font-size:9px;color:var(--text-dim);">${theme.description}</div>
+      ${isActive ? '<div style="position:absolute;top:6px;right:6px;font-size:10px;color:var(--green);">✓</div>' : ''}
+    `;
+
+    card.addEventListener('click', () => {
+      applyTheme(id);
+      // Actualizar UI
+      document.querySelectorAll('#theme-grid > div').forEach(c => {
+        c.style.border = '2px solid var(--border)';
+        c.style.background = 'transparent';
+        const check = c.querySelector('[style*="position:absolute"]');
+        if (check) check.remove();
+      });
+      card.style.border = '2px solid var(--green)';
+      card.style.background = 'rgba(0,255,65,0.05)';
+      const check = document.createElement('div');
+      check.style.cssText = 'position:absolute;top:6px;right:6px;font-size:10px;color:var(--green);';
+      check.textContent = '✓';
+      card.appendChild(check);
+      // Actualizar display name
+      document.getElementById('theme-name-display').textContent = `Tema actual: ${theme.emoji} ${theme.name}`;
+      // Guardar en servidor
+      fetch('/settings/theme', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({theme: id})
+      });
+    });
+
+    grid.appendChild(card);
+  });
+
+  // Mostrar tema actual
+  const currentTheme = THEMES[current];
+  if (currentTheme) {
+    document.getElementById('theme-name-display').textContent =
+      `Tema actual: ${currentTheme.emoji} ${currentTheme.name}`;
+  }
+}
+
+// Inicializar panel de temas cuando el tab está activo
+document.addEventListener('DOMContentLoaded', () => {
+  initThemePanel();
+});
 </script>
 {% endblock %}
