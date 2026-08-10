@@ -460,6 +460,24 @@ def settings_app():
                            flash_msg=msg, flash_type="ok" if ok else "error")
 
 
+@app.route("/settings/font", methods=["POST"])
+@login_required
+def settings_font():
+    """Guardar fuente elegida por el usuario"""
+    d = request.get_json()
+    font = d.get("font", "share_orbitron")
+    try:
+        from modules.config_manager import load_config, save_config
+        config = load_config()
+        if config:
+            if "user_fonts" not in config:
+                config["user_fonts"] = {}
+            config["user_fonts"][session["user"]] = font
+            save_config(config)
+    except Exception:
+        pass
+    return jsonify({"ok": True})
+
 @app.route("/settings/theme", methods=["POST"])
 @login_required
 def settings_theme():

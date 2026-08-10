@@ -188,3 +188,98 @@ function getCurrentTheme() {
     document.documentElement.setAttribute('data-theme', saved);
   }
 })();
+
+
+// ── FONT MANAGER ─────────────────────────────────────────────────────────────
+
+const FONTS = {
+  share_orbitron: {
+    name: "Terminal Clásica",
+    emoji: "⬡",
+    description: "Share Tech Mono + Orbitron",
+    mono: "'Share Tech Mono', monospace",
+    display: "'Orbitron', monospace",
+    google: "Share+Tech+Mono&family=Orbitron:wght@400;700;900"
+  },
+  vt323: {
+    name: "Retro Pixel",
+    emoji: "█",
+    description: "VT323 + Orbitron",
+    mono: "'VT323', monospace",
+    display: "'Orbitron', monospace",
+    google: "VT323&family=Orbitron:wght@400;700;900"
+  },
+  fira_code: {
+    name: "Coder Pro",
+    emoji: "< >",
+    description: "Fira Code + Rajdhani",
+    mono: "'Fira Code', monospace",
+    display: "'Rajdhani', monospace",
+    google: "Fira+Code:wght@400;700&family=Rajdhani:wght@600;700"
+  },
+  jetbrains: {
+    name: "JetBrains",
+    emoji: "{}",
+    description: "JetBrains Mono + Exo 2",
+    mono: "'JetBrains Mono', monospace",
+    display: "'Exo 2', monospace",
+    google: "JetBrains+Mono:wght@400;700&family=Exo+2:wght@600;700;900"
+  },
+  ibm_plex: {
+    name: "IBM Terminal",
+    emoji: "▓",
+    description: "IBM Plex Mono + Russo One",
+    mono: "'IBM Plex Mono', monospace",
+    display: "'Russo One', monospace",
+    google: "IBM+Plex+Mono:wght@400;700&family=Russo+One"
+  },
+  courier: {
+    name: "Classic Pro",
+    emoji: "▶",
+    description: "Courier Prime + Orbitron",
+    mono: "'Courier Prime', monospace",
+    display: "'Orbitron', monospace",
+    google: "Courier+Prime:wght@400;700&family=Orbitron:wght@400;700;900"
+  }
+};
+
+const DEFAULT_FONT = 'share_orbitron';
+
+function applyFont(fontId) {
+  const font = FONTS[fontId] || FONTS[DEFAULT_FONT];
+  const root = document.documentElement;
+  root.style.setProperty('--font-mono', font.mono);
+  root.style.setProperty('--font-display', font.display);
+  localStorage.setItem('ss_font', fontId);
+
+  // Cargar fuente de Google si no está ya cargada
+  const linkId = 'ss-font-' + fontId;
+  if (!document.getElementById(linkId)) {
+    const link = document.createElement('link');
+    link.id = linkId;
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + font.google + '&display=swap';
+    document.head.appendChild(link);
+  }
+}
+
+function getCurrentFont() {
+  return localStorage.getItem('ss_font') || DEFAULT_FONT;
+}
+
+// Aplicar fuente al cargar
+(function() {
+  const saved = localStorage.getItem('ss_font') || DEFAULT_FONT;
+  if (saved && FONTS[saved]) {
+    const font = FONTS[saved];
+    const root = document.documentElement;
+    root.style.setProperty('--font-mono', font.mono);
+    root.style.setProperty('--font-display', font.display);
+    // Precargar la fuente
+    const link = document.createElement('link');
+    link.id = 'ss-font-' + saved;
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + font.google + '&display=swap';
+    document.head.appendChild(link);
+  }
+})();
