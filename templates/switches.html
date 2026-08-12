@@ -126,132 +126,58 @@
   </div>
   <div class="stat-box">
     <div class="stat-value" style="color:var(--green);">
-      {{ stats|selectattr('connected')|list|length }}
+      <span id='count-online'>-</span>
     </div>
     <div class="stat-label">Online</div>
   </div>
   <div class="stat-box">
     <div class="stat-value" style="color:var(--red);">
-      {{ stats|rejectattr('connected')|list|length }}
+      <span id='count-offline'>-</span>
     </div>
     <div class="stat-label">Offline</div>
   </div>
   <div class="stat-box">
     <div class="stat-value" style="color:var(--amber);">
-      {% set telnet_count = namespace(n=0) %}
-      {% for s in stats %}
-        {% if s.connected and s.security is defined and s.security.telnet_enabled %}
-          {% set telnet_count.n = telnet_count.n + 1 %}
-        {% endif %}
-      {% endfor %}
-      {{ telnet_count.n }}
+<span id='count-telnet'>-</span>
     </div>
     <div class="stat-label">Telnet Activo ⚠</div>
   </div>
 </div>
 
-<!-- GRILLA DE SWITCHES -->
+<!-- GRILLA DE SWITCHES — carga lazy -->
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
-{% for s in stats %}
-{% set status_class = 'online' if s.connected else 'offline' %}
-<div class="switch-card {{ status_class }}">
+{% for sw in switches %}
+<div class="switch-card" id="card-{{ sw.id|replace(':', 'COLON') }}"
+     data-server-id="{{ sw.id|replace(':', 'COLON') }}">
 
-  <!-- Header -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-    {% if s.connected %}
-      {% set sc = s.security_score %}
-      <div class="score-ring {% if sc >= 80 %}score-ok{% elif sc >= 50 %}score-warn{% else %}score-danger{% endif %}">
-        {{ sc }}%
+  <!-- Estado inicial: cargando -->
+  <div class="card-loading">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <div class="score-ring" style="border-color:rgba(0,255,65,0.2);color:rgba(0,255,65,0.3);">
+        <span style="animation:spin 1s linear infinite;display:inline-block;">⟳</span>
       </div>
-    {% else %}
-      <div class="score-ring score-danger">ERR</div>
-    {% endif %}
-
-    <div style="flex:1;min-width:0;">
-      <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--green);letter-spacing:1px;">
-        {{ s.server_name }}
+      <div>
+        <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--green);">{{ sw.name }}</div>
+        <div style="font-size:10px;color:rgba(0,255,65,0.4);">{{ sw.host }}:{{ sw.port }}</div>
       </div>
-      <div style="font-size:10px;color:rgba(0,255,65,0.4);font-family:var(--font-mono);">
-        {{ s.host }}:{{ s.port }}
-      </div>
-      {% if s.connected %}
-      <div style="font-size:9px;color:rgba(0,255,65,0.35);">{{ s.hostname }} · {{ s.os }}</div>
-      {% endif %}
+      <span class="badge" style="margin-left:auto;color:var(--amber);border-color:rgba(255,179,0,0.3);">⟳ CONSULTANDO</span>
     </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
-      <!-- Vendor badge -->
-      {% if s.connected %}
-      <span class="vendor-badge vendor-{{ s.vendor }}">
-        {% if s.vendor == 'cisco' %}🔵 CISCO
-        {% elif s.vendor == 'hp_aruba' %}🟢 HP/ARUBA
-        {% elif s.vendor == 'mikrotik' %}🟡 MIKROTIK
-        {% elif s.vendor == 'juniper' %}🔴 JUNIPER
-        {% elif s.vendor == 'fortinet' %}🟠 FORTINET
-        {% else %}⚪ GENERIC{% endif %}
-      </span>
-      {% endif %}
-      <span class="badge {% if s.connected %}badge-ok{% else %}badge-danger{% endif %}">
-        {% if s.connected %}● ONLINE{% else %}○ OFFLINE{% endif %}
-      </span>
+    <div style="height:3px;background:rgba(0,255,65,0.08);border-radius:2px;overflow:hidden;">
+      <div style="height:100%;background:linear-gradient(90deg,transparent,var(--green),transparent);animation:scan 1.5s infinite;background-size:200%;"></div>
     </div>
   </div>
 
-  {% if s.connected %}
-
-  <!-- Métricas -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-    <div>
-      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">CPU</div>
-      <div style="font-size:13px;font-weight:700;color:var(--green);">{{ s.cpu_usage }}</div>
-    </div>
-    <div>
-      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">UPTIME</div>
-      <div style="font-size:10px;color:var(--green);">{{ s.uptime[:15] if s.uptime != 'N/A' else 'N/A' }}</div>
-    </div>
-    <div>
-      <div style="font-size:9px;color:rgba(0,255,65,0.4);letter-spacing:1px;">INTERFACES</div>
-      <div style="font-size:13px;font-weight:700;color:var(--green);">
-        {{ s.interfaces|selectattr('up')|list|length }}/{{ s.interfaces|length }}
-      </div>
-    </div>
-  </div>
-
-  <!-- Badges de seguridad -->
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-    {% if s.security is defined %}
-    <span class="badge {% if not s.security.telnet_enabled %}badge-ok{% else %}badge-danger{% endif %}">
-      TELNET {% if not s.security.telnet_enabled %}OFF{% else %}ON⚠{% endif %}
-    </span>
-    <span class="badge {% if s.security.ssh_v2_only %}badge-ok{% else %}badge-warn{% endif %}">
-      SSH {% if s.security.ssh_v2_only %}v2✓{% else %}!v2{% endif %}
-    </span>
-    <span class="badge {% if not s.security.snmp_community_public %}badge-ok{% else %}badge-danger{% endif %}">
-      SNMP {% if not s.security.snmp_community_public %}OK{% else %}⚠{% endif %}
-    </span>
-    <span class="badge {% if s.security.acl_configured %}badge-ok{% else %}badge-warn{% endif %}">
-      ACL {% if s.security.acl_configured %}✓{% else %}—{% endif %}
-    </span>
-    {% endif %}
-    {% if s.vlans %}
-    <span class="badge badge-info">{{ s.vlans|length }} VLANs</span>
-    {% endif %}
-  </div>
-
-  {% else %}
-  <div class="alert-box alert-danger" style="margin:0;">
-    ✕ {{ s.error or 'Sin conexión' }}
-  </div>
-  {% endif %}
+  <!-- Contenido real -->
+  <div class="card-content" style="display:none;"></div>
 
   <!-- Acciones -->
   <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
-    <a href="/switch/{{ (s.server_id or s.id)|replace(":", "COLON") }}" class="btn-primary"
+    <a href="/switch/{{ sw.id|replace(':', 'COLON') }}" class="btn-primary"
        style="font-size:9px;padding:6px 12px;text-decoration:none;">▶ DETALLE</a>
     <button class="btn-primary" style="font-size:9px;padding:6px 10px;"
-            onclick="refreshSwitch('{{ (s.server_id or s.id)|replace(":", "COLON") }}', this)">⟳</button>
+            onclick="refreshSwitchCard('{{ sw.id|replace(":", "COLON") }}', this)">⟳</button>
     <button class="btn-danger" style="margin-left:auto;"
-            onclick="removeSwitch('{{ (s.server_id or s.id)|replace(":", "COLON") }}', '{{ s.server_name or s.name }}')">✕</button>
+            onclick="removeSwitch('{{ sw.id|replace(":", "COLON") }}', '{{ sw.name }}')">✕</button>
   </div>
 </div>
 {% endfor %}
@@ -372,6 +298,96 @@ function showToast(msg, ok=true) {
   setTimeout(() => t.style.display = 'none', 3500);
 }
 
+// ── CARGA LAZY ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-server-id]').forEach(card => {
+    loadSwitchCard(card.dataset.serverId, card);
+  });
+});
+
+async function loadSwitchCard(id, card) {
+  if (!card) card = document.getElementById('card-' + id);
+  if (!card) return;
+  try {
+    const r = await fetch('/api/switch/' + id);
+    const s = await r.json();
+    renderSwitchCard(card, s, id);
+  } catch(e) {
+    const content = card.querySelector('.card-content');
+    const loading = card.querySelector('.card-loading');
+    content.innerHTML = '<div class="alert-box alert-danger">✕ Error de conexión</div>';
+    loading.style.display = 'none';
+    content.style.display = 'block';
+    card.classList.add('offline');
+  }
+}
+
+function renderSwitchCard(card, s, id) {
+  const loading = card.querySelector('.card-loading');
+  const content = card.querySelector('.card-content');
+  card.classList.remove('online','offline');
+  card.classList.add(s.connected ? 'online' : 'offline');
+  const sc = s.security_score || 0;
+  const scoreClass = sc >= 80 ? 'score-ok' : sc >= 50 ? 'score-warn' : 'score-danger';
+  const vendorMap = {cisco:'🔵 CISCO',hp_aruba:'🟢 HP/ARUBA',mikrotik:'🟡 MIKROTIK',juniper:'🔴 JUNIPER',fortinet:'🟠 FORTINET'};
+  const vendorLabel = vendorMap[s.vendor] || '⚪ ' + (s.vendor||'?').toUpperCase();
+
+  if (s.connected) {
+    const sec = s.security || {};
+    const ifaces = s.interfaces || [];
+    const vlans = s.vlans || [];
+    const ifUp = ifaces.filter(i=>i.up).length;
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div class="score-ring ${scoreClass}">${sc}%</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--green);">${s.server_name}</div>
+          <div style="font-size:10px;color:rgba(0,255,65,0.4);">${s.host}:${s.port}</div>
+          <div style="font-size:9px;color:rgba(0,255,65,0.3);">${s.hostname||''} · ${s.os||''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+          <span class="vendor-badge vendor-${s.vendor||'generic'}">${vendorLabel}</span>
+          <span class="badge badge-ok">● ONLINE</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><div style="font-size:9px;color:rgba(0,255,65,0.4);">CPU</div><div style="font-size:13px;font-weight:700;color:var(--green);">${s.cpu_usage||'N/A'}</div></div>
+        <div><div style="font-size:9px;color:rgba(0,255,65,0.4);">UPTIME</div><div style="font-size:10px;color:var(--green);">${(s.uptime||'N/A').substring(0,15)}</div></div>
+        <div><div style="font-size:9px;color:rgba(0,255,65,0.4);">INTERFACES</div><div style="font-size:13px;font-weight:700;color:var(--green);">${ifUp}/${ifaces.length}</div></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="badge ${!sec.telnet_enabled?'badge-ok':'badge-danger'}">TELNET ${!sec.telnet_enabled?'OFF':'ON⚠'}</span>
+        <span class="badge ${sec.ssh_v2_only?'badge-ok':'badge-warn'}">SSH ${sec.ssh_v2_only?'v2✓':'!v2'}</span>
+        <span class="badge ${!sec.snmp_community_public?'badge-ok':'badge-danger'}">SNMP ${!sec.snmp_community_public?'OK':'⚠'}</span>
+        <span class="badge ${sec.acl_configured?'badge-ok':'badge-warn'}">ACL ${sec.acl_configured?'✓':'—'}</span>
+        ${vlans.length?`<span class="badge badge-info">${vlans.length} VLANs</span>`:''}
+      </div>`;
+  } else {
+    content.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div class="score-ring score-danger">ERR</div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--green);">${s.server_name}</div>
+          <div style="font-size:10px;color:rgba(0,255,65,0.4);">${s.host}:${s.port}</div>
+        </div>
+        <span class="badge badge-danger" style="margin-left:auto;">○ OFFLINE</span>
+      </div>
+      <div class="alert-box alert-danger" style="margin:0;">✕ ${s.error||'Sin conexión'}</div>`;
+  }
+  loading.style.display = 'none';
+  content.style.display = 'block';
+}
+
+async function refreshSwitchCard(id, btn) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  card.querySelector('.card-loading').style.display = 'flex';
+  card.querySelector('.card-content').style.display = 'none';
+  card.classList.remove('online','offline');
+  await fetch('/switch/refresh/' + id);
+  await loadSwitchCard(id, card);
+}
+
 async function addSwitch() {
   const btn = document.getElementById('btn-text');
   const err = document.getElementById('modal-error');
@@ -422,14 +438,14 @@ async function addSwitch() {
 
 async function removeSwitch(id, name) {
   if (!confirm(`¿Eliminar "${name}"?`)) return;
-  await fetch('/switch/remove/' + id, { method: 'POST' });
+  await fetch('/switch/remove/' + encodeURIComponent(id), { method: 'POST' });
   showToast('Dispositivo eliminado');
   setTimeout(() => location.reload(), 800);
 }
 
 async function refreshSwitch(id, btn) {
   btn.textContent = '⟳';
-  await fetch('/switch/refresh/' + id);
+  await fetch('/switch/refresh/' + encodeURIComponent(id));
   location.reload();
 }
 </script>

@@ -156,7 +156,6 @@ def servers():
 @app.route("/remote/<path:server_id>")
 @login_required
 def server_detail(server_id):
-    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
@@ -200,7 +199,6 @@ def remote_add():
 @app.route("/remote/remove/<path:server_id>", methods=["POST"])
 @login_required
 def remote_remove(server_id):
-    server_id = _decode_id(server_id)
     remove_server(server_id)
     invalidate(server_id)
     return jsonify({"ok": True})
@@ -208,7 +206,6 @@ def remote_remove(server_id):
 @app.route("/remote/refresh/<path:server_id>")
 @login_required
 def remote_refresh(server_id):
-    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if server:
         invalidate(server_id)
@@ -221,15 +218,14 @@ def remote_refresh(server_id):
 @app.route("/switches")
 @login_required
 def switches():
+    """Carga lazy — solo pasa la lista, el JS carga cada dispositivo"""
     all_switches = [s for s in load_servers() if s.get("os_type") == "switch"]
-    stats = fetch_all_parallel(all_switches, _fetch_server) if all_switches else []
     return render_template("switches.html", user=session["user"], role=session["role"],
-                           switches=all_switches, stats=stats, active="switches")
+                           switches=all_switches, stats=[], active="switches")
 
 @app.route("/switch/<path:server_id>")
 @login_required
 def switch_detail(server_id):
-    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("switches"))
@@ -273,7 +269,6 @@ def switch_add():
 @app.route("/switch/remove/<path:server_id>", methods=["POST"])
 @login_required
 def switch_remove(server_id):
-    server_id = _decode_id(server_id)
     remove_server(server_id)
     invalidate(server_id)
     return jsonify({"ok": True})
@@ -281,7 +276,6 @@ def switch_remove(server_id):
 @app.route("/switch/refresh/<path:server_id>")
 @login_required
 def switch_refresh(server_id):
-    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if server:
         invalidate(server_id)
@@ -296,7 +290,6 @@ def switch_refresh(server_id):
 def terminal(server_id):
     if session.get("role") != "admin":
         return redirect(url_for("dashboard"))
-    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
@@ -518,6 +511,40 @@ def api_stats():
 @login_required
 def api_servers():
     return jsonify(fetch_all_parallel(load_servers(), _fetch_server))
+
+@app.route("/api/switch/<path:server_id>")
+@login_required
+def api_switch_single(server_id):
+    """Datos de un switch individual — para carga lazy"""
+    server_id = _decode_id(server_id)
+    server = get_server(server_id)
+    if not server:
+        return jsonify({"connected": False, "error": "Servidor no encontrado"})
+    # Intentar caché primero
+    cached = get_cached(server_id)
+    if cached:
+        return jsonify(cached)
+    # Si no hay caché, consultar
+    data = _fetch_server(server)
+    set_cache(server_id, data)
+    return jsonify(data)
+
+
+@app.route("/api/server/<path:server_id>")
+@login_required
+def api_server_single(server_id):
+    """Datos de un servidor individual — para carga lazy"""
+    server_id = _decode_id(server_id)
+    server = get_server(server_id)
+    if not server:
+        return jsonify({"connected": False, "error": "Servidor no encontrado"})
+    cached = get_cached(server_id)
+    if cached:
+        return jsonify(cached)
+    data = _fetch_server(server)
+    set_cache(server_id, data)
+    return jsonify(data)
+
 
 @app.route("/api/updates/check")
 @admin_required
