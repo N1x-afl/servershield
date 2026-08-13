@@ -198,7 +198,7 @@ def get_telnet_stats(server):
         # Mapear outputs al formato esperado por los parsers
         mapped = {
             "hostname":   outputs.get("show version", ""),
-            "cpu":        outputs.get("show processes cpu sorted | head 5", ""),
+            "cpu":        outputs.get("show processes cpu", ""),
             "memory":     outputs.get("show version", ""),
             "uptime":     outputs.get("show version", ""),
             "vlans":      outputs.get("show vlan brief", ""),
