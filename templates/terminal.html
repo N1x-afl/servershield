@@ -6,9 +6,9 @@
 <title>Terminal — {{ server.name }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/addon-fit/addon-fit.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   :root {
@@ -385,5 +385,10 @@ function addLog(msg, type = '') {
 // Actualizar tamaño al cargar
 setTimeout(fitTerminal, 200);
 </script>
+<div id="close-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <div style="font-family:'Orbitron',monospace;font-size:18px;color:#00ff41;text-shadow:0 0 20px #00ff41;">[ SESIÓN TERMINADA ]</div>
+  <div style="font-size:13px;color:rgba(0,255,65,0.6);">Podés cerrar esta pestaña</div>
+  <button onclick="window.close()" style="background:transparent;border:1px solid #00ff41;color:#00ff41;font-family:monospace;font-size:12px;padding:10px 24px;cursor:pointer;letter-spacing:2px;">✕ CERRAR PESTAÑA</button>
+</div>
 </body>
 </html>

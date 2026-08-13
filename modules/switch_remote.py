@@ -258,8 +258,8 @@ def _get_commands(vendor):
     elif vendor == "cisco":
         return {
             "hostname":   "show running-config | include hostname",
-            "cpu":        "show processes cpu sorted | head 5",
-            "memory":     "show processes memory sorted | head 3",
+            "cpu":        "show processes cpu | head 3",
+            "memory":     "show version | include bytes",
             "uptime":     "show version | include uptime",
             "vlans":      "show vlan brief",
             "interfaces": "show interfaces status",
@@ -464,6 +464,12 @@ def _parse_mem_pct(mem_out, vendor):
             total, used = int(m.group(1)), int(m.group(2))
             return round((used / total) * 100, 1) if total else 0
     elif vendor == "cisco":
+        # Formato: 61440K/4088K bytes of memory
+        m = re.search(r"(\d+)K/(\d+)K bytes of memory", mem_out)
+        if m:
+            total = int(m.group(1)) + int(m.group(2))
+            used  = int(m.group(2))
+            return round((used / total) * 100, 1) if total else 0
         m = re.search(r"Processor Pool Total:\s+(\d+)\s+Used:\s+(\d+)", mem_out)
         if m:
             total, used = int(m.group(1)), int(m.group(2))

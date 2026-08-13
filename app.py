@@ -226,6 +226,7 @@ def switches():
 @app.route("/switch/<path:server_id>")
 @login_required
 def switch_detail(server_id):
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("switches"))
@@ -290,6 +291,7 @@ def switch_refresh(server_id):
 def terminal(server_id):
     if session.get("role") != "admin":
         return redirect(url_for("dashboard"))
+    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
