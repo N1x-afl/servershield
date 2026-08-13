@@ -230,6 +230,7 @@ def switch_detail(server_id):
     server = get_server(server_id)
     if not server:
         return redirect(url_for("switches"))
+    invalidate(server_id)
     data = _fetch_server(server)
     set_cache(server_id, data)
     return render_template("server_detail.html", user=session["user"],
