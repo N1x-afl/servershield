@@ -15,6 +15,8 @@ from datetime import datetime
 # ── CONEXIÓN TELNET BÁSICA (síncrona para análisis) ───────────────────────────
 
 def _run_telnet_commands(host, port, username, password, commands, timeout=15):
+    from modules.credential_manager import decrypt_password
+    password = decrypt_password(password)
     """
     Conectar por Telnet, autenticar y ejecutar lista de comandos.
     Devuelve dict {comando: output}

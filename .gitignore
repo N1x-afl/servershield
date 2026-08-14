@@ -16,3 +16,4 @@ app_new.py
 app.py.bak
 config.json
 .secret_key
+logs/

@@ -22,6 +22,7 @@ from modules.config_manager import (
 )
 from modules.updater      import check_for_updates, apply_update
 from modules.terminal_ssh import connect_ssh, send_input, resize_terminal, disconnect_ssh
+from modules.audit_log import log_login, log_terminal_connect, log_terminal_disconnect, log_terminal_command, get_audit_logs
 from modules.telnet_remote import (
     get_telnet_stats, test_connection as telnet_test_connection,
     connect_telnet_terminal, send_telnet_input, disconnect_telnet
@@ -87,7 +88,9 @@ def login():
         if role:
             session["user"] = username
             session["role"] = role
+            log_login(username, request.remote_addr, success=True)
             return redirect(url_for("dashboard"))
+        log_login(username, request.remote_addr, success=False)
         error = "Credenciales inválidas. Acceso denegado."
     return render_template("login.html", error=error)
 
@@ -230,7 +233,6 @@ def switch_detail(server_id):
     server = get_server(server_id)
     if not server:
         return redirect(url_for("switches"))
-    invalidate(server_id)
     data = _fetch_server(server)
     set_cache(server_id, data)
     return render_template("server_detail.html", user=session["user"],
@@ -292,7 +294,6 @@ def switch_refresh(server_id):
 def terminal(server_id):
     if session.get("role") != "admin":
         return redirect(url_for("dashboard"))
-    server_id = _decode_id(server_id)
     server = get_server(server_id)
     if not server:
         return redirect(url_for("servers"))
@@ -319,8 +320,16 @@ def on_ssh_connect(data):
         emit("ssh_error", {"message": "Servidor no encontrado"})
         return
 
-    # Conectar en thread separado — SSH o Telnet según protocolo
+    # Registrar en auditoría
     protocol = server.get("protocol", "ssh")
+    log_terminal_connect(
+        user=session.get("user", "unknown"),
+        server_name=server.get("name", server_id),
+        host=server.get("host", "?"),
+        protocol=protocol
+    )
+
+    # Conectar en thread separado — SSH o Telnet según protocolo
     if protocol == "telnet":
         t = threading.Thread(
             target=connect_telnet_terminal,
@@ -342,11 +351,23 @@ def on_ssh_input(data):
     if not session.get("user") or session.get("role") != "admin":
         return
     server_id = data.get("server_id", "")
-    server = get_server(server_id) if server_id else None
+    server = get_server(_decode_id(server_id)) if server_id else None
+    cmd = data.get("input", "")
+
+    # Registrar comando si termina en Enter
+    if cmd.endswith("\r") or cmd.endswith("\n"):
+        if server:
+            log_terminal_command(
+                user=session.get("user", "unknown"),
+                server_name=server.get("name", server_id),
+                host=server.get("host", "?"),
+                command=cmd
+            )
+
     if server and server.get("protocol") == "telnet":
-        send_telnet_input(request.sid, data.get("input", ""))
+        send_telnet_input(request.sid, cmd)
     else:
-        send_input(request.sid, data.get("input", ""))
+        send_input(request.sid, cmd)
 
 
 @socketio.on("resize")
@@ -360,6 +381,12 @@ def on_disconnect():
     """Limpiar sesión SSH o Telnet al desconectar"""
     disconnect_ssh(request.sid)
     disconnect_telnet(request.sid)
+    if session.get("user"):
+        log_terminal_disconnect(
+            user=session.get("user", "unknown"),
+            server_name="?",
+            host="?"
+        )
 
 
 # ── ACTUALIZACIONES ───────────────────────────────────────────────────────────
@@ -505,6 +532,19 @@ def settings_theme():
     return jsonify({"ok": True})
 
 # ── API ───────────────────────────────────────────────────────────────────────
+@app.route("/audit")
+@admin_required
+def audit():
+    """Panel de auditoría"""
+    logs = get_audit_logs(limit=200)
+    return render_template("audit.html", user=session["user"],
+                           role=session["role"], logs=logs, active="audit")
+
+@app.route("/api/audit")
+@admin_required
+def api_audit():
+    return jsonify(get_audit_logs(limit=100))
+
 @app.route("/api/stats")
 @login_required
 def api_stats():

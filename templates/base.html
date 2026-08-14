@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ServerShield — {% block title %}Dashboard{% endblock %}</title>
 <script src="/static/js/themes.js"></script>
-<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
@@ -76,7 +75,7 @@
 
   .topbar-status {
     display: flex; gap: 14px; align-items: center;
-    font-size: 13px; color: rgba(0,255,65,0.6);
+    font-size: 12px; color: rgba(0,255,65,0.5);
     margin-left: auto;
   }
 
@@ -291,7 +290,7 @@
   .table-term {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .table-term th {
@@ -319,7 +318,7 @@
     gap: 10px;
     padding: 8px 0;
     border-bottom: 1px solid rgba(0,255,65,0.06);
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .check-icon { font-size: 14px; width: 20px; text-align: center; }
@@ -449,6 +448,9 @@
       </a>
       <a href="/updates" class="nav-item {% if active=='updates' %}active{% endif %}">
         <span class="nav-icon">⬆</span> Actualizaciones
+      </a>
+      <a href="/audit" class="nav-item {% if active=='audit' %}active{% endif %}">
+        <span class="nav-icon">📋</span> Auditoría
       </a>
     </div>
 
