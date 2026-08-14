@@ -12,14 +12,16 @@ from datetime import datetime
 
 
 def _get_client(server):
+    from modules.credential_manager import decrypt_server
+    server = decrypt_server(server)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     kwargs = {
         "hostname": server["host"],
         "port":     server["port"],
         "username": server["username"],
-        "timeout":  20,
-        "banner_timeout": 25,
+        "timeout":  10,
+        "banner_timeout": 15,
         "allow_agent": False,
         "look_for_keys": False,
     }
@@ -31,7 +33,7 @@ def _get_client(server):
     return client
 
 
-def _run_cmd(shell, cmd, wait=1.2):
+def _run_cmd(shell, cmd, wait=2.0):
     """Ejecutar comando en shell interactivo y devolver output"""
     shell.send(cmd + "\n")
     time.sleep(wait)
@@ -138,7 +140,7 @@ def get_switch_stats(server):
         outputs = {"version": ver_out}
         for key, cmd in cmds.items():
             if cmd:
-                out = _clean(_run_cmd(shell, cmd, wait=1.5))
+                out = _clean(_run_cmd(shell, cmd, wait=2.5))
                 outputs[key] = out
 
         client.close()
@@ -258,8 +260,8 @@ def _get_commands(vendor):
     elif vendor == "cisco":
         return {
             "hostname":   "show running-config | include hostname",
-            "cpu":        "show processes cpu | head 3",
-            "memory":     "show version | include bytes",
+            "cpu":        "show processes cpu sorted | head 5",
+            "memory":     "show processes memory sorted | head 3",
             "uptime":     "show version | include uptime",
             "vlans":      "show vlan brief",
             "interfaces": "show interfaces status",
@@ -464,12 +466,6 @@ def _parse_mem_pct(mem_out, vendor):
             total, used = int(m.group(1)), int(m.group(2))
             return round((used / total) * 100, 1) if total else 0
     elif vendor == "cisco":
-        # Formato: 61440K/4088K bytes of memory
-        m = re.search(r"(\d+)K/(\d+)K bytes of memory", mem_out)
-        if m:
-            total = int(m.group(1)) + int(m.group(2))
-            used  = int(m.group(2))
-            return round((used / total) * 100, 1) if total else 0
         m = re.search(r"Processor Pool Total:\s+(\d+)\s+Used:\s+(\d+)", mem_out)
         if m:
             total, used = int(m.group(1)), int(m.group(2))

@@ -66,6 +66,8 @@ def get_server(server_id):
 # ── CONEXIÓN SSH ──────────────────────────────────────────────────────────────
 
 def _get_client(server):
+    from modules.credential_manager import decrypt_server
+    server = decrypt_server(server)
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     kwargs = {
@@ -190,14 +192,14 @@ def get_remote_stats(server):
         security["ufw_active"] = "active" in ufw_raw.lower()
 
         # firewalld (Fedora/RHEL)
-        fwd = _run(client, "sudo firewall-cmd --state 2>/dev/null")
+        fwd = _run(client, "firewall-cmd --state 2>/dev/null")
         security["firewalld_active"] = fwd.strip() == "running"
 
         # Mostrar el firewall disponible
         if security["ufw_active"]:
             security["ufw_output"] = ufw_raw
         elif security["firewalld_active"]:
-            security["ufw_output"] = _run(client, "sudo firewall-cmd --list-all 2>/dev/null")
+            security["ufw_output"] = _run(client, "firewall-cmd --list-all 2>/dev/null")
         else:
             security["ufw_output"] = "Sin firewall activo detectado"
 

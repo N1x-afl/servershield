@@ -15,6 +15,8 @@ WINRM_PORT_HTTPS = 5986
 
 def _get_session(server):
     """Crear sesión WinRM"""
+    from modules.credential_manager import decrypt_server
+    server = decrypt_server(server)
     protocol = "https" if server.get("use_ssl") else "http"
     port     = server.get("port", WINRM_PORT_HTTP)
     return winrm.Session(
